@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SensorHub — DHT11</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <style>
+    :root {
+      --cream:   #f5f0e8;
+      --sand:    #ede7d9;
+      --tan:     #d9cfc0;
+      --bark:    #9a8470;
+      --espresso:#3d2e22;
+      --terra:   #c7603a;
+      --terra-lt:#e8937a;
+      --sky:     #4a7fa5;
+      --sky-lt:  #8ab4ce;
+      --leaf:    #5a7a55;
+      --radius:  4px;
+      --radius-lg: 8px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--cream);
+      color: var(--espresso);
+      min-height: 100vh;
+    }
+
+    /* ══════════════════════════════
+       HEADER
+    ══════════════════════════════ */
+    header {
+      background: var(--espresso);
+      color: var(--cream);
+      padding: 0 32px;
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      border-bottom: 3px solid var(--terra);
+    }
+
+    .header-brand {
+      padding: 18px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin-right: 40px;
+      border-right: 1px solid rgba(255,255,255,.1);
+      padding-right: 40px;
+    }
+
+    .brand-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.6rem;
+      letter-spacing: .01em;
+      line-height: 1;
+      color: var(--cream);
+    }
+
+    .brand-sub {
+      font-size: .68rem;
+      font-weight: 500;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: var(--bark);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 22px;
+      font-size: .8rem;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--bark);
+      cursor: pointer;
+      border: none;
+      background: none;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -3px;
+      transition: color .2s, border-color .2s, background .2s;
+    }
+
+    .nav-link:hover { color: var(--cream); background: rgba(255,255,255,.05); }
+
+    .nav-link.active {
+      color: var(--cream);
+      border-bottom-color: var(--terra);
+    }
+
+    .pulse-ring {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--terra-lt);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .pulse-ring::after {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: 50%;
+      border: 1.5px solid var(--terra-lt);
+      animation: ring 2s infinite;
+      opacity: 0;
+    }
+
+    @keyframes ring {
+      0%   { transform: scale(.8); opacity: .8; }
+      100% { transform: scale(2);  opacity: 0; }
+    }
+
+    /* ══════════════════════════════
+       PAGES
+    ══════════════════════════════ */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .container {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 32px 24px 60px;
+    }
+
+    /* ══════════════════════════════
+       FILTER STRIP
+    ══════════════════════════════ */
+    .filter-strip {
+      background: var(--sand);
+      border: 1px solid var(--tan);
+      border-radius: var(--radius-lg);
+      padding: 18px 22px;
+      margin-bottom: 28px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 16px;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .filter-label {
+      font-size: .66rem;
+      font-weight: 700;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--bark);
+    }
+
+    .filter-strip input,
+    .filter-strip select {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--cream);
+      border: 1.5px solid var(--tan);
+      color: var(--espresso);
+      border-radius: var(--radius);
+      font-size: .85rem;
+      padding: 7px 11px;
+      outline: none;
+      transition: border-color .2s;
+      min-width: 120px;
+    }
+
+    .filter-strip input:focus,
+    .filter-strip select:focus { border-color: var(--terra); }
+
+    .filter-strip select option { background: var(--cream); }
+
+    .quick-chips {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-left: auto;
+    }
+
+    .chip {
+      padding: 5px 14px;
+      border-radius: 999px;
+      border: 1.5px solid var(--tan);
+      background: var(--cream);
+      color: var(--bark);
+      font-size: .73rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .18s;
+      white-space: nowrap;
+    }
+
+    .chip:hover {
+      border-color: var(--terra);
+      color: var(--terra);
+      background: #fdf8f4;
+    }
+
+    .live-label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: .75rem;
+      font-weight: 600;
+      color: var(--bark);
+      cursor: pointer;
+      user-select: none;
+      padding: 6px 12px;
+      border: 1.5px solid var(--tan);
+      border-radius: 999px;
+      background: var(--cream);
+      transition: all .18s;
+    }
+
+    .live-label input { display: none; }
+    .live-label.on { border-color: var(--leaf); color: var(--leaf); }
+
+    .live-dot-sm {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--leaf);
+      animation: ring2 1.8s infinite;
+    }
+
+    @keyframes ring2 {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .4; }
+    }
+
+    /* ══════════════════════════════
+       STAT CARDS — big editorial
+    ══════════════════════════════ */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 0;
+      border: 1.5px solid var(--tan);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      margin-bottom: 28px;
+    }
+
+    @media (max-width: 680px) { .stats-grid { grid-template-columns: 1fr 1fr; } }
+
+    .stat-block {
+      padding: 22px 20px;
+      border-right: 1.5px solid var(--tan);
+      background: #fff;
+      position: relative;
+    }
+
+    .stat-block:last-child { border-right: none; }
+
+    .stat-block.accent-terra { border-top: 3px solid var(--terra); }
+    .stat-block.accent-sky   { border-top: 3px solid var(--sky); }
+    .stat-block.accent-bark  { border-top: 3px solid var(--bark); }
+
+    .stat-eyebrow {
+      font-size: .62rem;
+      font-weight: 700;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--bark);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .live-badge {
+      background: var(--leaf);
+      color: #fff;
+      font-size: .55rem;
+      font-weight: 700;
+      letter-spacing: .12em;
+      padding: 1px 6px;
+      border-radius: 3px;
+    }
+
+    .stat-number {
+      font-family: 'DM Serif Display', serif;
+      font-size: 2.8rem;
+      line-height: 1;
+      color: var(--espresso);
+      letter-spacing: -.01em;
+    }
+
+    .stat-unit {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 1rem;
+      font-weight: 400;
+      color: var(--bark);
+      margin-left: 3px;
+    }
+
+    /* ══════════════════════════════
+       CHART
+    ══════════════════════════════ */
+    .section-head {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .section-head h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.25rem;
+      color: var(--espresso);
+    }
+
+    .section-head span {
+      font-size: .72rem;
+      font-weight: 600;
+      color: var(--bark);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .chart-panel {
+      background: #fff;
+      border: 1.5px solid var(--tan);
+      border-radius: var(--radius-lg);
+      padding: 22px 22px 18px;
+      margin-bottom: 28px;
+    }
+
+    .chart-meta-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .meta-pill {
+      background: var(--sand);
+      border: 1px solid var(--tan);
+      color: var(--bark);
+      font-size: .72rem;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-family: 'DM Mono', monospace;
+    }
+
+    /* ══════════════════════════════
+       TABLE
+    ══════════════════════════════ */
+    .table-panel {
+      background: #fff;
+      border: 1.5px solid var(--tan);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .table-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1.5px solid var(--tan);
+      background: var(--sand);
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .table-topbar h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.1rem;
+    }
+
+    .table-controls-right {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .tbl-input, .tbl-select {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--cream);
+      border: 1.5px solid var(--tan);
+      color: var(--espresso);
+      border-radius: var(--radius);
+      padding: 5px 10px;
+      font-size: .8rem;
+      outline: none;
+    }
+
+    .tbl-input:focus, .tbl-select:focus { border-color: var(--terra); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .84rem;
+    }
+
+    thead th {
+      padding: 10px 20px;
+      text-align: left;
+      font-size: .65rem;
+      font-weight: 700;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--bark);
+      border-bottom: 1.5px solid var(--tan);
+      background: var(--sand);
+    }
+
+    tbody tr {
+      border-bottom: 1px solid var(--sand);
+      transition: background .12s;
+    }
+
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #fdf8f4; }
+    tbody tr.latest-row { background: #fdf3ee; border-left: 3px solid var(--terra); }
+
+    tbody td { padding: 11px 20px; }
+
+    .tag-time {
+      font-family: 'DM Mono', monospace;
+      font-size: .78rem;
+      color: var(--bark);
+    }
+
+    .tag-temp {
+      display: inline-block;
+      background: #fdf0eb;
+      border: 1px solid #f0c4b2;
+      color: var(--terra);
+      font-weight: 700;
+      font-size: .8rem;
+      padding: 3px 10px;
+      border-radius: 3px;
+    }
+
+    .tag-hum {
+      display: inline-block;
+      background: #eef4f9;
+      border: 1px solid #b8d0e0;
+      color: var(--sky);
+      font-weight: 700;
+      font-size: .8rem;
+      padding: 3px 10px;
+      border-radius: 3px;
+    }
+
+    .empty-state {
+      padding: 40px;
+      text-align: center;
+      color: var(--bark);
+      font-size: .9rem;
+    }
+
+    /* Pagination */
+    .pag-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      border-top: 1.5px solid var(--tan);
+      flex-wrap: wrap;
+      gap: 10px;
+      background: var(--sand);
+    }
+
+    .pag-row small { font-size: .75rem; color: var(--bark); }
+
+    .pag-btns { display: flex; align-items: center; gap: 8px; }
+
+    .pag-btn {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--cream);
+      border: 1.5px solid var(--tan);
+      color: var(--espresso);
+      border-radius: var(--radius);
+      padding: 5px 14px;
+      font-size: .78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .18s;
+    }
+
+    .pag-btn:disabled { opacity: .35; cursor: not-allowed; }
+    .pag-btn:not(:disabled):hover { border-color: var(--terra); color: var(--terra); }
+    .pag-info { font-size: .78rem; color: var(--bark); }
+
+    /* ══════════════════════════════
+       CONTROLS PAGE
+    ══════════════════════════════ */
+    .controls-layout {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 24px;
+    }
+
+    @media (max-width: 768px) { .controls-layout { grid-template-columns: 1fr; } }
+
+    .panel {
+      background: #fff;
+      border: 1.5px solid var(--tan);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .panel-head {
+      padding: 14px 20px;
+      border-bottom: 1.5px solid var(--tan);
+      background: var(--sand);
+    }
+
+    .panel-head h3 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.05rem;
+      color: var(--espresso);
+    }
+
+    .panel-head p {
+      font-size: .72rem;
+      color: var(--bark);
+      margin-top: 2px;
+    }
+
+    .panel-body { padding: 20px; }
+
+    /* LED rows */
+    .led-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--sand);
+    }
+
+    .led-row:last-child { border-bottom: none; }
+
+    .led-info {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .led-circle {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      border: 2px solid var(--tan);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      transition: all .25s;
+      background: var(--sand);
+      filter: grayscale(1) brightness(.85);
+    }
+
+    .led-row.on .led-circle {
+      filter: none;
+      border-color: transparent;
+      box-shadow: 0 0 16px currentColor;
+    }
+
+    .led-row.on.red    .led-circle { background: #ff6b6b; color: #fff; box-shadow: 0 0 16px rgba(255,107,107,.5); }
+    .led-row.on.green  .led-circle { background: #5aaa6e; color: #fff; box-shadow: 0 0 16px rgba(90,170,110,.5); }
+    .led-row.on.blue   .led-circle { background: #4a7fa5; color: #fff; box-shadow: 0 0 16px rgba(74,127,165,.5); }
+    .led-row.on.yellow .led-circle { background: #d4a017; color: #fff; box-shadow: 0 0 16px rgba(212,160,23,.5); }
+    .led-row.on.white  .led-circle { background: #d9cfc0; color: #fff; box-shadow: 0 0 16px rgba(217,207,192,.7); }
+
+    .led-name-text {
+      font-weight: 600;
+      font-size: .88rem;
+      color: var(--espresso);
+    }
+
+    .led-state {
+      font-size: .7rem;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--bark);
+    }
+
+    .led-row.on .led-state { color: var(--leaf); }
+
+    /* Toggle switch */
+    .toggle {
+      width: 46px; height: 25px;
+      border-radius: 999px;
+      background: var(--tan);
+      border: none;
+      position: relative;
+      cursor: pointer;
+      transition: background .2s;
+      flex-shrink: 0;
+    }
+
+    .toggle.on { background: var(--terra); }
+
+    .toggle::after {
+      content: '';
+      position: absolute;
+      top: 3px; left: 3px;
+      width: 19px; height: 19px;
+      border-radius: 50%;
+      background: #fff;
+      transition: transform .22s cubic-bezier(.2,.9,.3,1.2);
+      box-shadow: 0 2px 6px rgba(0,0,0,.2);
+    }
+
+    .toggle.on::after { transform: translateX(21px); }
+
+    /* Quick action buttons */
+    .action-btn {
+      width: 100%;
+      padding: 13px;
+      border-radius: var(--radius);
+      border: 1.5px solid var(--tan);
+      font-family: 'DM Sans', sans-serif;
+      font-size: .85rem;
+      font-weight: 700;
+      letter-spacing: .04em;
+      cursor: pointer;
+      transition: all .18s;
+      margin-bottom: 10px;
+    }
+
+    .action-btn:last-child { margin-bottom: 0; }
+
+    .action-btn.off {
+      background: #fdf0eb;
+      border-color: #f0c4b2;
+      color: var(--terra);
+    }
+
+    .action-btn.on {
+      background: #edf5ee;
+      border-color: #aed3b2;
+      color: var(--leaf);
+    }
+
+    .action-btn.off:hover { background: #f9e0d5; }
+    .action-btn.on:hover  { background: #daeadb; }
+
+    /* divider label */
+    .divider-label {
+      font-size: .62rem;
+      font-weight: 700;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--bark);
+      padding: 0 0 14px;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ HEADER ══ -->
+<header>
+  <div class="header-brand">
+    <span class="brand-title">SensorHub</span>
+    <span class="brand-sub">DHT11 Monitor</span>
+  </div>
+  <nav class="nav-links">
+    <button class="nav-link active" onclick="showPage('index')">
+      <span class="pulse-ring"></span>
+      Dashboard
+    </button>
+    <button class="nav-link" onclick="showPage('controls')">
+      Controls
+    </button>
+  </nav>
+</header>
+
+<!-- ══════════════════════════════════════
+     PAGE: DASHBOARD
+══════════════════════════════════════ -->
+<div class="page active" id="page-index">
+<div class="container">
+
+  <!-- Filter Strip -->
+  <div class="filter-strip">
+    <div class="filter-group">
+      <span class="filter-label">Date</span>
+      <input type="date" id="dateInput" />
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">From</span>
+      <select id="startHour"><option value="">All hours</option></select>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">To</span>
+      <select id="endHour"><option value="">All hours</option></select>
+    </div>
+
+    <div class="quick-chips">
+      <button class="chip" onclick="setRange(0,5)">Night</button>
+      <button class="chip" onclick="setRange(6,11)">Morning</button>
+      <button class="chip" onclick="setRange(12,17)">Afternoon</button>
+      <button class="chip" onclick="setRange(18,23)">Evening</button>
+      <button class="chip" onclick="setRange('','')">Full Day</button>
+
+      <label class="live-label on" id="liveLabel">
+        <input type="checkbox" id="realtimeToggle" checked>
+        <span class="live-dot-sm"></span>
+        Live
+      </label>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-block accent-terra">
+      <div class="stat-eyebrow">
+        Current Temp
+        <span class="live-badge">LIVE</span>
+      </div>
+      <div class="stat-number" id="curTemp">--<span class="stat-unit">°C</span></div>
+    </div>
+    <div class="stat-block accent-sky">
+      <div class="stat-eyebrow">
+        Current Humidity
+        <span class="live-badge">LIVE</span>
+      </div>
+      <div class="stat-number" id="curHum">--<span class="stat-unit">%</span></div>
+    </div>
+    <div class="stat-block accent-bark">
+      <div class="stat-eyebrow">Max Temp</div>
+      <div class="stat-number" id="maxTemp">--<span class="stat-unit">°C</span></div>
+    </div>
+    <div class="stat-block accent-bark">
+      <div class="stat-eyebrow">Max Humidity</div>
+      <div class="stat-number" id="maxHum">--<span class="stat-unit">%</span></div>
+    </div>
+  </div>
+
+  <!-- Chart -->
+  <div class="chart-panel">
+    <div class="chart-meta-row">
+      <div class="section-head" style="margin:0;">
+        <h2>Sensor Timeline</h2>
+        <span>1-minute averages</span>
+      </div>
+      <span class="meta-pill" id="dataCount">Waiting for data…</span>
+    </div>
+    <canvas id="dhtChart" height="75"></canvas>
+  </div>
+
+  <!-- Table -->
+  <div class="table-panel">
+    <div class="table-topbar">
+      <h2>Reading History</h2>
+      <div class="table-controls-right">
+        <input type="text" class="tbl-input" id="searchBox" placeholder="Search time…" style="width:140px;">
+        <select class="tbl-select" id="rowsPerPage">
+          <option value="10">10 rows</option>
+          <option value="25" selected>25 rows</option>
+          <option value="50">50 rows</option>
+          <option value="100">100 rows</option>
+          <option value="all">All</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Temperature</th>
+            <th>Humidity</th>
+          </tr>
+        </thead>
+        <tbody id="historyTable">
+          <tr><td colspan="3" class="empty-state">Select a date to load readings</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div id="paginationControls" class="pag-row" style="display:none;">
+      <small>Showing <span id="showingRange">0</span> of <span id="totalRows">0</span> entries</small>
+      <div class="pag-btns">
+        <button class="pag-btn" id="prevPage" disabled>← Previous</button>
+        <span class="pag-info">Page <span id="currentPage">1</span> of <span id="totalPages">1</span></span>
+        <button class="pag-btn" id="nextPage" disabled>Next →</button>
+      </div>
+    </div>
+
+    <div id="noData" class="empty-state" style="display:none;">No readings found for the selected filters.</div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════════════════════════════
+     PAGE: CONTROLS
+══════════════════════════════════════ -->
+<div class="page" id="page-controls">
+<div class="container">
+
+  <div class="controls-layout">
+
+    <!-- LED List -->
+    <div class="panel">
+      <div class="panel-head">
+        <h3>LED Controls</h3>
+        <p>Click a toggle to switch the LED on or off</p>
+      </div>
+      <div class="panel-body">
+
+        <div class="led-row red" id="row-LED1">
+          <div class="led-info">
+            <div class="led-circle">●</div>
+            <div>
+              <div class="led-name-text">LED 1 — Red</div>
+              <div class="led-state" id="state-LED1">OFF</div>
+            </div>
+          </div>
+          <button class="toggle" id="toggle-LED1" onclick="toggleDevice('LED1')"></button>
+        </div>
+
+        <div class="led-row green" id="row-LED2">
+          <div class="led-info">
+            <div class="led-circle">●</div>
+            <div>
+              <div class="led-name-text">LED 2 — Green</div>
+              <div class="led-state" id="state-LED2">OFF</div>
+            </div>
+          </div>
+          <button class="toggle" id="toggle-LED2" onclick="toggleDevice('LED2')"></button>
+        </div>
+
+        <div class="led-row blue" id="row-LED3">
+          <div class="led-info">
+            <div class="led-circle">●</div>
+            <div>
+              <div class="led-name-text">LED 3 — Blue</div>
+              <div class="led-state" id="state-LED3">OFF</div>
+            </div>
+          </div>
+          <button class="toggle" id="toggle-LED3" onclick="toggleDevice('LED3')"></button>
+        </div>
+
+        <div class="led-row yellow" id="row-LED4">
+          <div class="led-info">
+            <div class="led-circle">●</div>
+            <div>
+              <div class="led-name-text">LED 4 — Yellow</div>
+              <div class="led-state" id="state-LED4">OFF</div>
+            </div>
+          </div>
+          <button class="toggle" id="toggle-LED4" onclick="toggleDevice('LED4')"></button>
+        </div>
+
+        <div class="led-row white" id="row-LED5">
+          <div class="led-info">
+            <div class="led-circle">●</div>
+            <div>
+              <div class="led-name-text">LED 5 — White</div>
+              <div class="led-state" id="state-LED5">OFF</div>
+            </div>
+          </div>
+          <button class="toggle" id="toggle-LED5" onclick="toggleDevice('LED5')"></button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div>
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Quick Actions</h3>
+        </div>
+        <div class="panel-body">
+          <span class="divider-label">Batch Control</span>
+          <button class="action-btn on" onclick="allOn()">Turn All ON</button>
+          <button class="action-btn off" onclick="allOff()">Turn All OFF</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<script>
+  // ── Firebase ──
+  const firebaseConfig = {
+    apiKey: "AIzaSyDBeBDvMK8FS8eVoZW6B9MKZm_a7_tLd1E",
+    authDomain: "padernilla-d95b5.firebaseapp.com",
+    databaseURL: "https://padernilla-d95b5-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "padernilla-d95b5",
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  // ── Navigation ──
+  function showPage(name) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+    document.getElementById(`page-${name}`).classList.add('active');
+    document.querySelector(`[onclick="showPage('${name}')"]`).classList.add('active');
+  }
+
+  // ── LED Controls ──
+  function toggleDevice(device) {
+    const row = document.getElementById(`row-${device}`);
+    const isOn = row.classList.contains('on');
+    db.ref(`Controls/${device}`).set({ state: isOn ? 0 : 1, timestamp: Date.now() });
+  }
+
+  function allOff() {
+    ['LED1','LED2','LED3','LED4','LED5'].forEach(d =>
+      db.ref(`Controls/${d}`).set({ state: 0, timestamp: Date.now() })
+    );
+  }
+
+  function allOn() {
+    ['LED1','LED2','LED3','LED4','LED5'].forEach(d =>
+      db.ref(`Controls/${d}`).set({ state: 1, timestamp: Date.now() })
+    );
+  }
+
+  ['LED1','LED2','LED3','LED4','LED5'].forEach(device => {
+    db.ref(`Controls/${device}`).on('value', snap => {
+      const data = snap.val();
+      const row    = document.getElementById(`row-${device}`);
+      const toggle = document.getElementById(`toggle-${device}`);
+      const state  = document.getElementById(`state-${device}`);
+
+      if (!data || data.state === undefined) {
+        db.ref(`Controls/${device}`).set({ state: 0, timestamp: Date.now() });
+        return;
+      }
+
+      if (data.state === 1) {
+        row.classList.add('on');
+        toggle.classList.add('on');
+        state.textContent = 'ON';
+      } else {
+        row.classList.remove('on');
+        toggle.classList.remove('on');
+        state.textContent = 'OFF';
+      }
+    });
+  });
+
+  // ── Chart ──
+  const labels = [], tempData = [], humData = [];
+  const dhtChart = new Chart(document.getElementById('dhtChart').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Temperature (°C)',
+          data: tempData,
+          borderColor: '#c7603a',
+          backgroundColor: 'rgba(199,96,58,.08)',
+          fill: true, tension: .4, pointRadius: 3, pointHoverRadius: 6,
+          pointBackgroundColor: '#c7603a'
+        },
+        {
+          label: 'Humidity (%)',
+          data: humData,
+          borderColor: '#4a7fa5',
+          backgroundColor: 'rgba(74,127,165,.08)',
+          fill: true, tension: .4, pointRadius: 3, pointHoverRadius: 6,
+          pointBackgroundColor: '#4a7fa5'
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: {
+        legend: { position: 'top', labels: { color: '#9a8470', font: { family: 'DM Sans', size: 12 } } },
+        tooltip: { mode: 'index', intersect: false }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: { color: '#ede7d9' },
+          ticks: { color: '#9a8470', font: { family: 'DM Mono', size: 11 } }
+        },
+        x: {
+          title: { display: true, text: 'Time', color: '#9a8470', font: { family: 'DM Sans', size: 11 } },
+          grid: { display: false },
+          ticks: { color: '#9a8470', font: { family: 'DM Mono', size: 11 }, maxTicksLimit: 12 }
+        }
+      }
+    }
+  });
+
+  // ── DOM refs ──
+  const dateInput      = document.getElementById('dateInput');
+  const startHour      = document.getElementById('startHour');
+  const endHour        = document.getElementById('endHour');
+  const realtimeToggle = document.getElementById('realtimeToggle');
+  const liveLabel      = document.getElementById('liveLabel');
+  const tbody          = document.getElementById('historyTable');
+  const searchBox      = document.getElementById('searchBox');
+  const rowsPerPage    = document.getElementById('rowsPerPage');
+  const prevBtn        = document.getElementById('prevPage');
+  const nextBtn        = document.getElementById('nextPage');
+  const pagControls    = document.getElementById('paginationControls');
+
+  let listener = null, allData = [], filtered = [], page = 1, rpp = 25;
+
+  dateInput.value = new Date().toISOString().split('T')[0];
+
+  for (let i = 0; i < 24; i++) {
+    const h = i.toString().padStart(2,'0');
+    startHour.innerHTML += `<option value="${h}">${h}:00</option>`;
+    endHour.innerHTML   += `<option value="${h}">${h}:59</option>`;
+  }
+
+  function setRange(s, e) {
+    startHour.value = s === '' ? '' : s.toString().padStart(2,'0');
+    endHour.value   = e === '' ? '' : e.toString().padStart(2,'0');
+    startListener();
+  }
+
+  function aggregateByMinute(data) {
+    const map = new Map();
+    [...data].reverse().forEach(p => {
+      const key = p.time.slice(0,5);
+      if (!map.has(key)) map.set(key, { temps:[], hums:[], ts: p.timestamp });
+      map.get(key).temps.push(p.temp);
+      map.get(key).hums.push(p.hum);
+    });
+    return [...map.entries()]
+      .map(([k,v]) => ({
+        time: k,
+        temp: parseFloat((v.temps.reduce((a,b)=>a+b,0)/v.temps.length).toFixed(1)),
+        hum:  parseFloat((v.hums.reduce((a,b)=>a+b,0)/v.hums.length).toFixed(1)),
+        timestamp: v.ts
+      }))
+      .sort((a,b) => a.timestamp - b.timestamp);
+  }
+
+  function startListener() {
+    const date = dateInput.value;
+    if (!date) return;
+    if (listener) listener.off();
+    labels.length = tempData.length = humData.length = 0;
+    allData = [];
+
+    listener = db.ref(`DHT11/${date}`);
+    listener.on('value', snap => {
+      if (!snap.exists()) { showEmpty(); return; }
+
+      const sh = startHour.value, eh = endHour.value;
+      const rows = [];
+
+      snap.forEach(hourNode => {
+        const h = parseInt(hourNode.key);
+        if (sh && h < parseInt(sh)) return;
+        if (eh && h > parseInt(eh)) return;
+        const hStr = hourNode.key;
+        hourNode.forEach(minNode => {
+          const m = minNode.key;
+          minNode.forEach(secNode => {
+            const s = secNode.key, d = secNode.val();
+            rows.push({
+              time: `${hStr}:${m}:${s}`,
+              temp: d.temperature,
+              hum:  d.humidity,
+              timestamp: new Date(`${date}T${hStr}:${m}:${s}`)
+            });
+          });
+        });
+      });
+
+      if (!rows.length) { showEmpty(); return; }
+
+      rows.sort((a,b) => b.timestamp - a.timestamp);
+      allData = rows; filtered = rows; page = 1;
+
+      const graphData = aggregateByMinute(rows);
+      labels.length = tempData.length = humData.length = 0;
+      graphData.forEach(p => { labels.push(p.time); tempData.push(p.temp); humData.push(p.hum); });
+
+      updateStats(rows);
+      dhtChart.update();
+      renderTable();
+
+      document.getElementById('noData').style.display = 'none';
+      document.getElementById('dataCount').textContent = `${graphData.length} min · ${rows.length} readings`;
+    });
+  }
+
+  function updateStats(data) {
+    const latest = data[0];
+    const temps = data.map(p => p.temp);
+    const hums  = data.map(p => p.hum);
+    document.getElementById('curTemp').innerHTML = `${latest.temp}<span class="stat-unit">°C</span>`;
+    document.getElementById('curHum').innerHTML  = `${latest.hum}<span class="stat-unit">%</span>`;
+    document.getElementById('maxTemp').innerHTML = `${Math.max(...temps).toFixed(1)}<span class="stat-unit">°C</span>`;
+    document.getElementById('maxHum').innerHTML  = `${Math.max(...hums).toFixed(1)}<span class="stat-unit">%</span>`;
+  }
+
+  function renderTable() {
+    if (!filtered.length) {
+      tbody.innerHTML = '<tr><td colspan="3" class="empty-state">No matching records</td></tr>';
+      pagControls.style.display = 'none';
+      return;
+    }
+
+    const total  = filtered.length;
+    const perPage = rpp === 'all' ? total : parseInt(rpp);
+    const pages  = Math.ceil(total / perPage);
+    if (page > pages) page = pages;
+    if (page < 1) page = 1;
+
+    const start = (page-1)*perPage;
+    const end   = rpp === 'all' ? total : Math.min(start+perPage, total);
+    const slice = filtered.slice(start, end);
+
+    tbody.innerHTML = slice.map((p, i) => `
+      <tr${(start+i===0) ? ' class="latest-row"' : ''}>
+        <td><span class="tag-time">${p.time}</span></td>
+        <td><span class="tag-temp">${p.temp} °C</span></td>
+        <td><span class="tag-hum">${p.hum} %</span></td>
+      </tr>
+    `).join('');
+
+    document.getElementById('currentPage').textContent  = page;
+    document.getElementById('totalPages').textContent   = pages;
+    document.getElementById('totalRows').textContent    = total;
+    document.getElementById('showingRange').textContent = `${start+1}–${end}`;
+    prevBtn.disabled = page === 1;
+    nextBtn.disabled = page === pages || rpp === 'all';
+    pagControls.style.display = rpp === 'all' ? 'none' : 'flex';
+  }
+
+  function showEmpty() {
+    document.getElementById('noData').style.display = 'block';
+    document.getElementById('dataCount').textContent = 'No data';
+    tbody.innerHTML = '<tr><td colspan="3" class="empty-state">No readings for selected filters</td></tr>';
+    pagControls.style.display = 'none';
+    document.getElementById('curTemp').innerHTML  = '--<span class="stat-unit">°C</span>';
+    document.getElementById('curHum').innerHTML   = '--<span class="stat-unit">%</span>';
+    document.getElementById('maxTemp').innerHTML  = '--<span class="stat-unit">°C</span>';
+    document.getElementById('maxHum').innerHTML   = '--<span class="stat-unit">%</span>';
+  }
+
+  searchBox.addEventListener('input', () => {
+    const q = searchBox.value.toLowerCase();
+    filtered = q ? allData.filter(p => p.time.includes(q)) : allData;
+    page = 1; renderTable();
+  });
+
+  rowsPerPage.addEventListener('change', () => { rpp = rowsPerPage.value; page=1; renderTable(); });
+  prevBtn.addEventListener('click', () => { if(page>1){page--;renderTable();} });
+  nextBtn.addEventListener('click', () => { const t=Math.ceil(filtered.length/parseInt(rpp)); if(page<t){page++;renderTable();} });
+
+  realtimeToggle.addEventListener('change', () => {
+    liveLabel.classList.toggle('on', realtimeToggle.checked);
+    if (realtimeToggle.checked) startListener();
+    else { if(listener){listener.off();listener=null;} document.getElementById('dataCount').textContent += ' (paused)'; }
+  });
+
+  dateInput.addEventListener('change', startListener);
+  startHour.addEventListener('change', startListener);
+  endHour.addEventListener('change', startListener);
+
+  startListener();
+</script>
+</body>
+</html>
