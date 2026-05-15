@@ -1,1190 +1,484 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>SensorHub — DHT11</title>
-
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-
-  <style>
-    :root {
-      --cream:   #f5f0e8;
-      --sand:    #ede7d9;
-      --tan:     #d9cfc0;
-      --bark:    #9a8470;
-      --espresso:#3d2e22;
-      --terra:   #c7603a;
-      --terra-lt:#e8937a;
-      --sky:     #4a7fa5;
-      --sky-lt:  #8ab4ce;
-      --leaf:    #5a7a55;
-      --radius:  4px;
-      --radius-lg: 8px;
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: 'DM Sans', sans-serif;
-      background: var(--cream);
-      color: var(--espresso);
-      min-height: 100vh;
-    }
-
-    /* ══════════════════════════════
-       HEADER
-    ══════════════════════════════ */
-    header {
-      background: var(--espresso);
-      color: var(--cream);
-      padding: 0 32px;
-      display: flex;
-      align-items: stretch;
-      gap: 0;
-      border-bottom: 3px solid var(--terra);
-    }
-
-    .header-brand {
-      padding: 18px 0;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      margin-right: 40px;
-      border-right: 1px solid rgba(255,255,255,.1);
-      padding-right: 40px;
-    }
-
-    .brand-title {
-      font-family: 'DM Serif Display', serif;
-      font-size: 1.6rem;
-      letter-spacing: .01em;
-      line-height: 1;
-      color: var(--cream);
-    }
-
-    .brand-sub {
-      font-size: .68rem;
-      font-weight: 500;
-      letter-spacing: .2em;
-      text-transform: uppercase;
-      color: var(--bark);
-    }
-
-    .nav-links {
-      display: flex;
-      align-items: stretch;
-      gap: 0;
-    }
-
-    .nav-link {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 0 22px;
-      font-size: .8rem;
-      font-weight: 600;
-      letter-spacing: .06em;
-      text-transform: uppercase;
-      color: var(--bark);
-      cursor: pointer;
-      border: none;
-      background: none;
-      border-bottom: 3px solid transparent;
-      margin-bottom: -3px;
-      transition: color .2s, border-color .2s, background .2s;
-    }
-
-    .nav-link:hover { color: var(--cream); background: rgba(255,255,255,.05); }
-
-    .nav-link.active {
-      color: var(--cream);
-      border-bottom-color: var(--terra);
-    }
-
-    .pulse-ring {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: var(--terra-lt);
-      position: relative;
-      flex-shrink: 0;
-    }
-
-    .pulse-ring::after {
-      content: '';
-      position: absolute;
-      inset: -3px;
-      border-radius: 50%;
-      border: 1.5px solid var(--terra-lt);
-      animation: ring 2s infinite;
-      opacity: 0;
-    }
-
-    @keyframes ring {
-      0%   { transform: scale(.8); opacity: .8; }
-      100% { transform: scale(2);  opacity: 0; }
-    }
-
-    /* ══════════════════════════════
-       PAGES
-    ══════════════════════════════ */
-    .page { display: none; }
-    .page.active { display: block; }
-
-    .container {
-      max-width: 1120px;
-      margin: 0 auto;
-      padding: 32px 24px 60px;
-    }
-
-    /* ══════════════════════════════
-       FILTER STRIP
-    ══════════════════════════════ */
-    .filter-strip {
-      background: var(--sand);
-      border: 1px solid var(--tan);
-      border-radius: var(--radius-lg);
-      padding: 18px 22px;
-      margin-bottom: 28px;
-      display: flex;
-      flex-wrap: wrap;
-      align-items: flex-end;
-      gap: 16px;
-    }
-
-    .filter-group {
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-    }
-
-    .filter-label {
-      font-size: .66rem;
-      font-weight: 700;
-      letter-spacing: .18em;
-      text-transform: uppercase;
-      color: var(--bark);
-    }
-
-    .filter-strip input,
-    .filter-strip select {
-      font-family: 'DM Sans', sans-serif;
-      background: var(--cream);
-      border: 1.5px solid var(--tan);
-      color: var(--espresso);
-      border-radius: var(--radius);
-      font-size: .85rem;
-      padding: 7px 11px;
-      outline: none;
-      transition: border-color .2s;
-      min-width: 120px;
-    }
-
-    .filter-strip input:focus,
-    .filter-strip select:focus { border-color: var(--terra); }
-
-    .filter-strip select option { background: var(--cream); }
-
-    .quick-chips {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-      align-items: center;
-      margin-left: auto;
-    }
-
-    .chip {
-      padding: 5px 14px;
-      border-radius: 999px;
-      border: 1.5px solid var(--tan);
-      background: var(--cream);
-      color: var(--bark);
-      font-size: .73rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all .18s;
-      white-space: nowrap;
-    }
-
-    .chip:hover {
-      border-color: var(--terra);
-      color: var(--terra);
-      background: #fdf8f4;
-    }
-
-    .live-label {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      font-size: .75rem;
-      font-weight: 600;
-      color: var(--bark);
-      cursor: pointer;
-      user-select: none;
-      padding: 6px 12px;
-      border: 1.5px solid var(--tan);
-      border-radius: 999px;
-      background: var(--cream);
-      transition: all .18s;
-    }
-
-    .live-label input { display: none; }
-    .live-label.on { border-color: var(--leaf); color: var(--leaf); }
-
-    .live-dot-sm {
-      width: 7px; height: 7px; border-radius: 50%;
-      background: var(--leaf);
-      animation: ring2 1.8s infinite;
-    }
-
-    @keyframes ring2 {
-      0%, 100% { opacity: 1; }
-      50% { opacity: .4; }
-    }
-
-    /* ══════════════════════════════
-       STAT CARDS — big editorial
-    ══════════════════════════════ */
-    .stats-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr 1fr;
-      gap: 0;
-      border: 1.5px solid var(--tan);
-      border-radius: var(--radius-lg);
-      overflow: hidden;
-      margin-bottom: 28px;
-    }
-
-    @media (max-width: 680px) { .stats-grid { grid-template-columns: 1fr 1fr; } }
-
-    .stat-block {
-      padding: 22px 20px;
-      border-right: 1.5px solid var(--tan);
-      background: #fff;
-      position: relative;
-    }
-
-    .stat-block:last-child { border-right: none; }
-
-    .stat-block.accent-terra { border-top: 3px solid var(--terra); }
-    .stat-block.accent-sky   { border-top: 3px solid var(--sky); }
-    .stat-block.accent-bark  { border-top: 3px solid var(--bark); }
-
-    .stat-eyebrow {
-      font-size: .62rem;
-      font-weight: 700;
-      letter-spacing: .18em;
-      text-transform: uppercase;
-      color: var(--bark);
-      margin-bottom: 8px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .live-badge {
-      background: var(--leaf);
-      color: #fff;
-      font-size: .55rem;
-      font-weight: 700;
-      letter-spacing: .12em;
-      padding: 1px 6px;
-      border-radius: 3px;
-    }
-
-    .stat-number {
-      font-family: 'DM Serif Display', serif;
-      font-size: 2.8rem;
-      line-height: 1;
-      color: var(--espresso);
-      letter-spacing: -.01em;
-    }
-
-    .stat-unit {
-      font-family: 'DM Sans', sans-serif;
-      font-size: 1rem;
-      font-weight: 400;
-      color: var(--bark);
-      margin-left: 3px;
-    }
-
-    /* ══════════════════════════════
-       CHART
-    ══════════════════════════════ */
-    .section-head {
-      display: flex;
-      align-items: baseline;
-      gap: 10px;
-      margin-bottom: 14px;
-    }
-
-    .section-head h2 {
-      font-family: 'DM Serif Display', serif;
-      font-size: 1.25rem;
-      color: var(--espresso);
-    }
-
-    .section-head span {
-      font-size: .72rem;
-      font-weight: 600;
-      color: var(--bark);
-      letter-spacing: .08em;
-      text-transform: uppercase;
-    }
-
-    .chart-panel {
-      background: #fff;
-      border: 1.5px solid var(--tan);
-      border-radius: var(--radius-lg);
-      padding: 22px 22px 18px;
-      margin-bottom: 28px;
-    }
-
-    .chart-meta-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 16px;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .meta-pill {
-      background: var(--sand);
-      border: 1px solid var(--tan);
-      color: var(--bark);
-      font-size: .72rem;
-      font-weight: 600;
-      padding: 3px 10px;
-      border-radius: 4px;
-      font-family: 'DM Mono', monospace;
-    }
-
-    /* ══════════════════════════════
-       TABLE
-    ══════════════════════════════ */
-    .table-panel {
-      background: #fff;
-      border: 1.5px solid var(--tan);
-      border-radius: var(--radius-lg);
-      overflow: hidden;
-    }
-
-    .table-topbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px 20px;
-      border-bottom: 1.5px solid var(--tan);
-      background: var(--sand);
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .table-topbar h2 {
-      font-family: 'DM Serif Display', serif;
-      font-size: 1.1rem;
-    }
-
-    .table-controls-right {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    .tbl-input, .tbl-select {
-      font-family: 'DM Sans', sans-serif;
-      background: var(--cream);
-      border: 1.5px solid var(--tan);
-      color: var(--espresso);
-      border-radius: var(--radius);
-      padding: 5px 10px;
-      font-size: .8rem;
-      outline: none;
-    }
-
-    .tbl-input:focus, .tbl-select:focus { border-color: var(--terra); }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: .84rem;
-    }
-
-    thead th {
-      padding: 10px 20px;
-      text-align: left;
-      font-size: .65rem;
-      font-weight: 700;
-      letter-spacing: .18em;
-      text-transform: uppercase;
-      color: var(--bark);
-      border-bottom: 1.5px solid var(--tan);
-      background: var(--sand);
-    }
-
-    tbody tr {
-      border-bottom: 1px solid var(--sand);
-      transition: background .12s;
-    }
-
-    tbody tr:last-child { border-bottom: none; }
-    tbody tr:hover { background: #fdf8f4; }
-    tbody tr.latest-row { background: #fdf3ee; border-left: 3px solid var(--terra); }
-
-    tbody td { padding: 11px 20px; }
-
-    .tag-time {
-      font-family: 'DM Mono', monospace;
-      font-size: .78rem;
-      color: var(--bark);
-    }
-
-    .tag-temp {
-      display: inline-block;
-      background: #fdf0eb;
-      border: 1px solid #f0c4b2;
-      color: var(--terra);
-      font-weight: 700;
-      font-size: .8rem;
-      padding: 3px 10px;
-      border-radius: 3px;
-    }
-
-    .tag-hum {
-      display: inline-block;
-      background: #eef4f9;
-      border: 1px solid #b8d0e0;
-      color: var(--sky);
-      font-weight: 700;
-      font-size: .8rem;
-      padding: 3px 10px;
-      border-radius: 3px;
-    }
-
-    .empty-state {
-      padding: 40px;
-      text-align: center;
-      color: var(--bark);
-      font-size: .9rem;
-    }
-
-    /* Pagination */
-    .pag-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 20px;
-      border-top: 1.5px solid var(--tan);
-      flex-wrap: wrap;
-      gap: 10px;
-      background: var(--sand);
-    }
-
-    .pag-row small { font-size: .75rem; color: var(--bark); }
-
-    .pag-btns { display: flex; align-items: center; gap: 8px; }
-
-    .pag-btn {
-      font-family: 'DM Sans', sans-serif;
-      background: var(--cream);
-      border: 1.5px solid var(--tan);
-      color: var(--espresso);
-      border-radius: var(--radius);
-      padding: 5px 14px;
-      font-size: .78rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all .18s;
-    }
-
-    .pag-btn:disabled { opacity: .35; cursor: not-allowed; }
-    .pag-btn:not(:disabled):hover { border-color: var(--terra); color: var(--terra); }
-    .pag-info { font-size: .78rem; color: var(--bark); }
-
-    /* ══════════════════════════════
-       CONTROLS PAGE
-    ══════════════════════════════ */
-    .controls-layout {
-      display: grid;
-      grid-template-columns: 1fr 280px;
-      gap: 24px;
-    }
-
-    @media (max-width: 768px) { .controls-layout { grid-template-columns: 1fr; } }
-
-    .panel {
-      background: #fff;
-      border: 1.5px solid var(--tan);
-      border-radius: var(--radius-lg);
-      overflow: hidden;
-    }
-
-    .panel-head {
-      padding: 14px 20px;
-      border-bottom: 1.5px solid var(--tan);
-      background: var(--sand);
-    }
-
-    .panel-head h3 {
-      font-family: 'DM Serif Display', serif;
-      font-size: 1.05rem;
-      color: var(--espresso);
-    }
-
-    .panel-head p {
-      font-size: .72rem;
-      color: var(--bark);
-      margin-top: 2px;
-    }
-
-    .panel-body { padding: 20px; }
-
-    /* LED rows */
-    .led-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 14px 0;
-      border-bottom: 1px solid var(--sand);
-    }
-
-    .led-row:last-child { border-bottom: none; }
-
-    .led-info {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-
-    .led-circle {
-      width: 36px; height: 36px;
-      border-radius: 50%;
-      border: 2px solid var(--tan);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1rem;
-      transition: all .25s;
-      background: var(--sand);
-      filter: grayscale(1) brightness(.85);
-    }
-
-    .led-row.on .led-circle {
-      filter: none;
-      border-color: transparent;
-      box-shadow: 0 0 16px currentColor;
-    }
-
-    .led-row.on.red    .led-circle { background: #ff6b6b; color: #fff; box-shadow: 0 0 16px rgba(255,107,107,.5); }
-    .led-row.on.green  .led-circle { background: #5aaa6e; color: #fff; box-shadow: 0 0 16px rgba(90,170,110,.5); }
-    .led-row.on.blue   .led-circle { background: #4a7fa5; color: #fff; box-shadow: 0 0 16px rgba(74,127,165,.5); }
-    .led-row.on.yellow .led-circle { background: #d4a017; color: #fff; box-shadow: 0 0 16px rgba(212,160,23,.5); }
-    .led-row.on.white  .led-circle { background: #d9cfc0; color: #fff; box-shadow: 0 0 16px rgba(217,207,192,.7); }
-
-    .led-name-text {
-      font-weight: 600;
-      font-size: .88rem;
-      color: var(--espresso);
-    }
-
-    .led-state {
-      font-size: .7rem;
-      font-weight: 700;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-      color: var(--bark);
-    }
-
-    .led-row.on .led-state { color: var(--leaf); }
-
-    /* Toggle switch */
-    .toggle {
-      width: 46px; height: 25px;
-      border-radius: 999px;
-      background: var(--tan);
-      border: none;
-      position: relative;
-      cursor: pointer;
-      transition: background .2s;
-      flex-shrink: 0;
-    }
-
-    .toggle.on { background: var(--terra); }
-
-    .toggle::after {
-      content: '';
-      position: absolute;
-      top: 3px; left: 3px;
-      width: 19px; height: 19px;
-      border-radius: 50%;
-      background: #fff;
-      transition: transform .22s cubic-bezier(.2,.9,.3,1.2);
-      box-shadow: 0 2px 6px rgba(0,0,0,.2);
-    }
-
-    .toggle.on::after { transform: translateX(21px); }
-
-    /* Quick action buttons */
-    .action-btn {
-      width: 100%;
-      padding: 13px;
-      border-radius: var(--radius);
-      border: 1.5px solid var(--tan);
-      font-family: 'DM Sans', sans-serif;
-      font-size: .85rem;
-      font-weight: 700;
-      letter-spacing: .04em;
-      cursor: pointer;
-      transition: all .18s;
-      margin-bottom: 10px;
-    }
-
-    .action-btn:last-child { margin-bottom: 0; }
-
-    .action-btn.off {
-      background: #fdf0eb;
-      border-color: #f0c4b2;
-      color: var(--terra);
-    }
-
-    .action-btn.on {
-      background: #edf5ee;
-      border-color: #aed3b2;
-      color: var(--leaf);
-    }
-
-    .action-btn.off:hover { background: #f9e0d5; }
-    .action-btn.on:hover  { background: #daeadb; }
-
-    /* divider label */
-    .divider-label {
-      font-size: .62rem;
-      font-weight: 700;
-      letter-spacing: .18em;
-      text-transform: uppercase;
-      color: var(--bark);
-      padding: 0 0 14px;
-      display: block;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kurt Cyril Padenilla</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+:root{
+  --bg:#fdf8f0;--bg2:#f5ede0;--white:#fffcf7;
+  --sun:#e8720c;--sun-l:#f0934a;--sun-xl:#fce8d5;--sun-xxl:#fff5ee;
+  --gold:#d4a017;--gold-xl:#fdf3d0;
+  --coral:#d95f5f;--coral-xl:#fde8e8;--coral-xxl:#fff4f4;
+  --sky:#4a8fa8;--sky-xl:#ddf0f7;
+  --olive:#6a8c5a;--olive-xl:#e2eed9;--olive-xxl:#f3f9ef;
+  --ink:#1f1810;--ink-soft:#4a3d2e;--ink-mute:#9a8a78;--ink-pale:#d4c8b8;
+  --border:#ecdcc8;--sh:0 2px 14px rgba(31,24,16,0.07);--sh-md:0 6px 28px rgba(31,24,16,0.12);
+  --r:18px;--r-sm:12px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--ink);font-family:'Sora',sans-serif;font-size:14.5px;min-height:100vh;}
+
+/* Blobs */
+body::before{content:'';position:fixed;top:-80px;right:-80px;width:450px;height:450px;border-radius:50%;
+  background:radial-gradient(circle,rgba(232,114,12,0.12),transparent 70%);pointer-events:none;z-index:0;}
+body::after{content:'';position:fixed;bottom:-60px;left:-60px;width:380px;height:380px;border-radius:50%;
+  background:radial-gradient(circle,rgba(212,160,23,0.10),transparent 70%);pointer-events:none;z-index:0;}
+
+/* ── TOP BAR ── */
+.topbar{position:sticky;top:0;z-index:100;background:var(--white);border-bottom:1px solid var(--border);
+  box-shadow:0 1px 10px rgba(31,24,16,0.06);}
+.topbar-inner{max-width:1160px;margin:0 auto;padding:14px 32px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.brand-wrap{display:flex;align-items:center;gap:12px;}
+.brand-orb{width:42px;height:42px;border-radius:14px;
+  background:linear-gradient(135deg,var(--sun),var(--gold));
+  display:flex;align-items:center;justify-content:center;font-size:20px;
+  box-shadow:0 4px 14px rgba(232,114,12,0.3);flex-shrink:0;}
+.brand-name{font-family:'Cormorant Garamond',serif;font-size:1.35rem;font-weight:600;color:var(--ink);letter-spacing:-0.01em;}
+.brand-sub{font-size:0.68rem;color:var(--ink-mute);font-weight:500;margin-top:1px;}
+.topbar-live{margin-left:auto;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.live-chip{display:flex;align-items:center;gap:8px;background:var(--sun-xxl);border:1px solid var(--sun-xl);
+  border-radius:50px;padding:7px 16px;}
+.live-chip-val{font-family:'Cormorant Garamond',serif;font-size:1.2rem;font-weight:600;}
+.live-chip-val.t{color:var(--sun);}
+.live-chip-val.h{color:var(--sky);}
+.live-chip-lbl{font-size:0.68rem;color:var(--ink-mute);font-weight:500;}
+.conn-badge{display:flex;align-items:center;gap:6px;background:var(--olive-xxl);border:1px solid var(--olive-xl);
+  border-radius:50px;padding:6px 14px;font-size:0.7rem;font-weight:600;color:var(--ink-mute);}
+.c-dot{width:7px;height:7px;border-radius:50%;background:var(--ink-pale);flex-shrink:0;
+  animation:glow 2.5s ease-in-out infinite;}
+.c-dot.live{background:var(--olive);box-shadow:0 0 0 3px var(--olive-xl);}
+@keyframes glow{0%,100%{opacity:1}50%{opacity:0.5}}
+
+/* ── NAV TABS ── */
+.nav-wrap{background:var(--white);border-bottom:1px solid var(--border);position:sticky;top:71px;z-index:99;}
+.nav-inner{max-width:1160px;margin:0 auto;padding:0 32px;display:flex;}
+.tab{padding:12px 20px;font-size:0.78rem;font-weight:600;color:var(--ink-mute);cursor:pointer;
+  border-bottom:2.5px solid transparent;transition:all 0.2s;display:flex;align-items:center;gap:7px;user-select:none;}
+.tab:hover{color:var(--ink-soft);}
+.tab.active{color:var(--sun);border-bottom-color:var(--sun);}
+
+/* ── MAIN ── */
+main{max-width:1160px;margin:0 auto;padding:30px 32px;position:relative;z-index:1;}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+.pg-title{font-family:'Cormorant Garamond',serif;font-size:2.2rem;font-weight:400;color:var(--ink);
+  letter-spacing:-0.01em;margin-bottom:3px;}
+.pg-title em{font-style:italic;color:var(--sun);}
+.pg-sub{font-size:0.75rem;color:var(--ink-mute);font-weight:500;margin-bottom:26px;}
+.sec-lbl{font-size:0.63rem;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;
+  color:var(--ink-pale);display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.sec-lbl::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* ── CARD ── */
+.card{background:var(--white);border-radius:var(--r);border:1px solid var(--border);
+  box-shadow:var(--sh);margin-bottom:20px;overflow:hidden;transition:box-shadow 0.2s;}
+.card:hover{box-shadow:var(--sh-md);}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:16px 22px;border-bottom:1px solid var(--border);}
+.c-title{font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-mute);}
+.c-badge{font-size:0.62rem;font-weight:700;padding:3px 10px;border-radius:50px;background:var(--sun-xl);color:var(--sun);}
+
+/* ── LIVE TRIO ── */
+.trio{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px;}
+@media(max-width:720px){.trio{grid-template-columns:1fr;}}
+.trio-card{background:var(--white);border-radius:var(--r);border:1px solid var(--border);
+  box-shadow:var(--sh);padding:24px;position:relative;overflow:hidden;transition:transform 0.2s,box-shadow 0.2s;}
+.trio-card:hover{transform:translateY(-2px);box-shadow:var(--sh-md);}
+.trio-stripe{height:3px;position:absolute;top:0;left:0;right:0;}
+.ts-t{background:linear-gradient(90deg,var(--sun-xl),var(--sun));}
+.ts-h{background:linear-gradient(90deg,var(--sky-xl),var(--sky));}
+.ts-a{background:linear-gradient(90deg,var(--olive-xl),var(--olive));}
+.trio-icon{font-size:26px;margin-bottom:10px;}
+.trio-lbl{font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--ink-mute);margin-bottom:6px;}
+.trio-val{font-family:'Cormorant Garamond',serif;font-size:4rem;font-weight:400;line-height:1;letter-spacing:-0.02em;}
+.trio-val.t{color:var(--sun);}
+.trio-val.h{color:var(--sky);}
+.trio-unit{font-size:1.2rem;font-style:italic;opacity:0.5;}
+.trio-bar-wrap{margin-top:12px;}
+.trio-track{height:4px;background:var(--bg2);border-radius:10px;overflow:hidden;}
+.trio-fill{height:100%;border-radius:10px;transition:width 0.6s ease;}
+.trio-fill.t{background:linear-gradient(90deg,var(--sun-l),var(--sun));}
+.trio-fill.h{background:linear-gradient(90deg,var(--sky),#6bb8d4);}
+.trio-range{font-size:0.65rem;color:var(--ink-mute);margin-top:5px;font-weight:500;}
+.alert-pill{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:50px;
+  font-size:0.78rem;font-weight:700;margin-bottom:12px;}
+.ap-ok  {background:var(--olive-xl); color:var(--olive);}
+.ap-warn{background:var(--coral-xl); color:var(--coral);animation:shake 1.5s ease-in-out infinite;}
+@keyframes shake{0%,100%{transform:translateX(0)}30%{transform:translateX(-2px)}70%{transform:translateX(2px)}}
+.ap-dot{width:8px;height:8px;border-radius:50%;background:currentColor;flex-shrink:0;}
+.trio-meta{font-size:0.7rem;color:var(--ink-mute);line-height:1.85;font-weight:500;}
+
+/* ── STAT GRID ── */
+.sgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+@media(max-width:700px){.sgrid{grid-template-columns:1fr 1fr;}}
+.stile{background:var(--white);border-radius:var(--r-sm);border:1px solid var(--border);
+  box-shadow:var(--sh);padding:18px 16px;transition:transform 0.18s;}
+.stile:hover{transform:translateY(-2px);}
+.stile-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.stile-ico{font-size:20px;}
+.stile-tag{font-size:0.6rem;font-weight:700;padding:2px 8px;border-radius:50px;text-transform:uppercase;letter-spacing:0.08em;}
+.st-sun{background:var(--sun-xl);color:var(--sun);}
+.st-sky{background:var(--sky-xl);color:var(--sky);}
+.st-gold{background:var(--gold-xl);color:var(--gold);}
+.st-olive{background:var(--olive-xl);color:var(--olive);}
+.stile-val{font-family:'Cormorant Garamond',serif;font-size:2.2rem;font-weight:400;
+  letter-spacing:-0.01em;line-height:1;}
+.sv-t{color:var(--sun);}
+.sv-h{color:var(--sky);}
+.sv-g{color:var(--gold);}
+.sv-o{color:var(--olive);}
+.stile-lbl{font-size:0.65rem;color:var(--ink-mute);font-weight:500;margin-top:4px;}
+.s-unit{font-size:0.8rem;font-style:italic;opacity:0.5;}
+
+/* ── LED ── */
+.led-area{padding:20px 22px;}
+.led-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;}
+.led-hd-txt{font-size:0.75rem;font-weight:600;color:var(--ink-soft);}
+.bulk-row{display:flex;gap:8px;}
+.bk-btn{font-size:0.7rem;font-weight:700;padding:6px 16px;border-radius:50px;border:1.5px solid;
+  cursor:pointer;background:transparent;font-family:'Sora',sans-serif;transition:all 0.18s;}
+.bk-on {color:var(--olive); border-color:var(--olive);}
+.bk-on:hover {background:var(--olive);color:#fff;box-shadow:0 3px 10px rgba(106,140,90,0.3);}
+.bk-off{color:var(--ink-mute);border-color:var(--border);}
+.bk-off:hover{background:var(--bg2);}
+.led-row{display:flex;flex-wrap:wrap;gap:10px;}
+.lpill{display:flex;align-items:center;gap:8px;background:var(--bg);border:1.5px solid var(--border);
+  border-radius:12px;padding:8px 13px;transition:all 0.2s;}
+.lpill.on{background:var(--olive-xxl);border-color:var(--olive-xl);}
+.lorb{width:10px;height:10px;border-radius:50%;background:var(--ink-pale);transition:all 0.3s;flex-shrink:0;}
+.lorb.on{background:var(--olive);box-shadow:0 0 0 4px var(--olive-xl);}
+.lpill-name{font-size:0.76rem;font-weight:700;color:var(--ink-soft);}
+.lpill-pin{font-size:0.63rem;color:var(--ink-mute);}
+.lpill-btns{display:flex;gap:4px;margin-left:2px;}
+.lb{font-size:0.63rem;font-weight:700;padding:3px 9px;border-radius:50px;cursor:pointer;
+  font-family:'Sora',sans-serif;border:1.5px solid;background:transparent;transition:all 0.15s;}
+.lb-on {color:var(--olive);border-color:var(--olive-xl);}
+.lb-on:hover {background:var(--olive);color:#fff;}
+.lb-off{color:var(--coral);border-color:var(--coral-xl);}
+.lb-off:hover{background:var(--coral);color:#fff;}
+
+/* ── CHART ── */
+.chart-area{padding:20px 22px;}
+.chart-leg{display:flex;gap:16px;margin-bottom:14px;flex-wrap:wrap;align-items:center;}
+.cl{display:flex;align-items:center;gap:7px;font-size:0.7rem;font-weight:600;color:var(--ink-soft);}
+.cl-dot{width:10px;height:10px;border-radius:3px;}
+
+/* ── TABLE ── */
+.tbl-filter{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;padding:14px 20px;
+  border-bottom:1px solid var(--border);background:var(--sun-xxl);}
+.fg-lbl{font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--ink-mute);}
+.fgi{display:flex;flex-direction:column;gap:4px;}
+.f-inp{background:var(--white);border:1.5px solid var(--border);border-radius:10px;
+  color:var(--ink);padding:7px 12px;font-family:'Sora',sans-serif;font-size:0.78rem;
+  outline:none;transition:all 0.2s;appearance:none;}
+.f-inp:focus{border-color:var(--sun);box-shadow:0 0 0 3px var(--sun-xl);}
+.f-btn{font-size:0.7rem;font-weight:700;padding:7px 16px;border-radius:10px;cursor:pointer;
+  border:1.5px solid;font-family:'Sora',sans-serif;transition:all 0.18s;}
+.fa{background:var(--sun);color:#fff;border-color:var(--sun);box-shadow:0 3px 10px rgba(232,114,12,0.25);}
+.fa:hover{background:var(--sun-l);}
+.fc{background:transparent;color:var(--ink-mute);border-color:var(--border);}
+.fc:hover{background:var(--bg2);}
+.rpp{background:var(--white);border:1.5px solid var(--border);border-radius:10px;
+  color:var(--ink);padding:7px 12px;font-family:'Sora',sans-serif;font-size:0.78rem;
+  outline:none;cursor:pointer;appearance:none;}
+.rpp:focus{border-color:var(--sun);}
+table{width:100%;border-collapse:collapse;}
+thead tr{background:var(--sun-xxl);border-bottom:1.5px solid var(--border);}
+th{padding:10px 15px;text-align:left;font-size:0.62rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:0.1em;color:var(--ink-mute);}
+th.r{text-align:right;}
+tbody tr{border-bottom:1px solid #f0e8dc;transition:background 0.12s;}
+tbody tr:hover{background:var(--sun-xxl);}
+td{padding:10px 15px;font-size:0.78rem;color:var(--ink-soft);}
+td.r{text-align:right;}
+td.dc{color:var(--ink-mute);font-size:0.7rem;}
+td.tc{font-weight:600;color:var(--ink);}
+.vth{color:var(--coral);font-weight:700;}
+.vtm{color:var(--gold);font-weight:700;}
+.vtl{color:var(--sky);font-weight:700;}
+.vhh{color:var(--sky);font-weight:600;}
+.vhm{color:var(--olive);font-weight:600;}
+.vhl{color:var(--ink-mute);}
+.sch{display:inline-flex;align-items:center;gap:5px;font-size:0.63rem;font-weight:700;padding:3px 9px;border-radius:50px;}
+.sch.ok{background:var(--olive-xl);color:var(--olive);}
+.sch.warn{background:var(--coral-xxl);color:var(--coral);}
+.tbl-foot{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
+  gap:10px;padding:12px 20px;border-top:1px solid var(--border);background:var(--sun-xxl);
+  font-size:0.68rem;color:var(--ink-mute);font-weight:600;}
+.pgr{display:flex;gap:4px;}
+.pgb{background:var(--white);border:1.5px solid var(--border);border-radius:8px;color:var(--ink-mute);
+  padding:4px 11px;cursor:pointer;font-family:'Sora',sans-serif;font-size:0.68rem;font-weight:700;transition:all 0.15s;}
+.pgb:hover:not(:disabled){border-color:var(--sun);color:var(--sun);}
+.pgb.active{background:var(--sun);color:#fff;border-color:var(--sun);}
+.pgb:disabled{opacity:0.3;cursor:not-allowed;}
+@keyframes rowFade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.rr{animation:rowFade 0.18s ease forwards;}
+
+/* ── THRESHOLD ── */
+.thresh-wrap{max-width:600px;}
+.tb{background:var(--white);border-radius:var(--r-sm);border:1px solid var(--border);
+  box-shadow:var(--sh);margin-bottom:16px;overflow:hidden;}
+.tb-hdr{padding:12px 20px;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;display:flex;align-items:center;gap:8px;}
+.tb-hdr.sun{background:var(--sun-xxl);color:var(--sun);}
+.tb-hdr.sky{background:var(--sky-xl);color:var(--sky);}
+.tb-hdr.olive{background:var(--olive-xxl);color:var(--olive);}
+.tb-body{padding:18px 20px;}
+.fg2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:500px){.fg2{grid-template-columns:1fr;}}
+.fg{display:flex;flex-direction:column;gap:5px;}
+.fg label{font-size:0.68rem;font-weight:700;color:var(--ink-soft);}
+.fg input{background:var(--bg);border:1.5px solid var(--border);border-radius:10px;
+  color:var(--ink);padding:9px 12px;font-family:'Sora',sans-serif;font-size:0.85rem;
+  outline:none;transition:all 0.2s;width:100%;}
+.fg input:focus{border-color:var(--sun);background:var(--white);box-shadow:0 0 0 3px var(--sun-xl);}
+.fg input.err{border-color:var(--coral);background:var(--coral-xxl);}
+.ferr{font-size:0.63rem;color:var(--coral);display:none;font-weight:600;}
+.ferr.show{display:block;}
+.save-btn{width:100%;padding:13px;background:linear-gradient(135deg,var(--sun),var(--sun-l));
+  border:none;border-radius:var(--r-sm);color:#fff;font-family:'Sora',sans-serif;font-size:0.85rem;
+  font-weight:700;cursor:pointer;transition:all 0.2s;box-shadow:0 5px 18px rgba(232,114,12,0.3);
+  letter-spacing:0.02em;margin-top:4px;}
+.save-btn:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(232,114,12,0.38);}
+.save-btn:disabled{opacity:0.45;cursor:not-allowed;transform:none;}
+.path-box{margin-top:16px;padding:14px 18px;border-radius:var(--r-sm);background:var(--sun-xxl);
+  border:1px solid var(--sun-xl);font-size:0.68rem;color:var(--ink-mute);line-height:1.9;font-weight:500;}
+.path-box code{background:var(--white);border:1px solid var(--border);border-radius:5px;
+  padding:1px 6px;font-size:0.66rem;color:var(--sun);font-family:'Courier New',monospace;}
+#toast{position:fixed;bottom:22px;right:22px;z-index:9999;padding:12px 20px;border-radius:14px;
+  font-size:0.78rem;font-weight:700;opacity:0;transform:translateY(10px);transition:all 0.3s;
+  pointer-events:none;box-shadow:0 6px 22px rgba(31,24,16,0.14);}
+#toast.show{opacity:1;transform:translateY(0);}
+#toast.ok{background:var(--olive);color:#fff;}
+#toast.fail{background:var(--coral);color:#fff;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--ink-pale);border-radius:10px;}
+</style>
 </head>
 <body>
 
-<!-- ══ HEADER ══ -->
-<header>
-  <div class="header-brand">
-    <span class="brand-title">SensorHub</span>
-    <span class="brand-sub">DHT11 Monitor</span>
-  </div>
-  <nav class="nav-links">
-    <button class="nav-link active" onclick="showPage('index')">
-      <span class="pulse-ring"></span>
-      Dashboard
-    </button>
-    <button class="nav-link" onclick="showPage('controls')">
-      Controls
-    </button>
-  </nav>
-</header>
-
-<!-- ══════════════════════════════════════
-     PAGE: DASHBOARD
-══════════════════════════════════════ -->
-<div class="page active" id="page-index">
-<div class="container">
-
-  <!-- Filter Strip -->
-  <div class="filter-strip">
-    <div class="filter-group">
-      <span class="filter-label">Date</span>
-      <input type="date" id="dateInput" />
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand-wrap">
+      <div class="brand-orb">🌅</div>
+      <div>
+        <div class="brand-name">Kurt Cyril Padenilla</div>
+        
+      </div>
     </div>
-    <div class="filter-group">
-      <span class="filter-label">From</span>
-      <select id="startHour"><option value="">All hours</option></select>
-    </div>
-    <div class="filter-group">
-      <span class="filter-label">To</span>
-      <select id="endHour"><option value="">All hours</option></select>
-    </div>
-
-    <div class="quick-chips">
-      <button class="chip" onclick="setRange(0,5)">Night</button>
-      <button class="chip" onclick="setRange(6,11)">Morning</button>
-      <button class="chip" onclick="setRange(12,17)">Afternoon</button>
-      <button class="chip" onclick="setRange(18,23)">Evening</button>
-      <button class="chip" onclick="setRange('','')">Full Day</button>
-
-      <label class="live-label on" id="liveLabel">
-        <input type="checkbox" id="realtimeToggle" checked>
-        <span class="live-dot-sm"></span>
-        Live
-      </label>
+    <div class="topbar-live">
+      <div class="live-chip"><span class="live-chip-val t" id="hdrT">--</span><span class="live-chip-lbl">°C</span></div>
+      <div class="live-chip"><span class="live-chip-val h" id="hdrH">--</span><span class="live-chip-lbl">% RH</span></div>
+      <div class="conn-badge"><span id="cdot" class="c-dot"></span><span id="ctxt">Connecting…</span></div>
     </div>
   </div>
+</div>
 
-  <!-- Stats -->
-  <div class="stats-grid">
-    <div class="stat-block accent-terra">
-      <div class="stat-eyebrow">
-        Current Temp
-        <span class="live-badge">LIVE</span>
+<div class="nav-wrap">
+  <div class="nav-inner">
+    <div class="tab active" onclick="switchTab('dash')">☀️ Dashboard</div>
+    <div class="tab" onclick="switchTab('thresh')">⚙️ Thresholds</div>
+  </div>
+</div>
+
+<main>
+<!-- ── DASHBOARD ── -->
+<div id="tab-dash" class="tab-panel active">
+  <div class="pg-title">Morning <em>Overview</em></div>
+  <div class="pg-sub">Live data from your ESP32 · Firebase Realtime Database · sadiangabayroel-393f3</div>
+
+  <div class="sec-lbl">Live Reading</div>
+  <div class="trio">
+    <div class="trio-card"><div class="trio-stripe ts-t"></div>
+      <div class="trio-icon">🌡️</div><div class="trio-lbl">Temperature</div>
+      <div class="trio-val t" id="liveT">--<span class="trio-unit"> °C</span></div>
+      <div class="trio-bar-wrap"><div class="trio-track"><div id="tBar" class="trio-fill t" style="width:0%;"></div></div></div>
+      <div class="trio-range" id="tRange">Limits: -- – --</div>
+    </div>
+    <div class="trio-card"><div class="trio-stripe ts-h"></div>
+      <div class="trio-icon">💧</div><div class="trio-lbl">Humidity</div>
+      <div class="trio-val h" id="liveH">--<span class="trio-unit"> %</span></div>
+      <div class="trio-bar-wrap"><div class="trio-track"><div id="hBar" class="trio-fill h" style="width:0%;"></div></div></div>
+      <div class="trio-range" id="hRange">Limits: -- – --</div>
+    </div>
+    <div class="trio-card"><div class="trio-stripe ts-a"></div>
+      <div class="trio-icon">🔔</div><div class="trio-lbl">Alert Status</div>
+      <div id="apill" class="alert-pill ap-ok"><span class="ap-dot"></span><span id="atxt">All clear</span></div>
+      <div class="trio-meta">
+        <div id="aEmail">📧 Not set</div>
+        <div id="aTime"  style="margin-top:3px;">🕐 --</div>
+        <div id="aCnt"   style="margin-top:3px;">📦 0 readings</div>
       </div>
-      <div class="stat-number" id="curTemp">--<span class="stat-unit">°C</span></div>
-    </div>
-    <div class="stat-block accent-sky">
-      <div class="stat-eyebrow">
-        Current Humidity
-        <span class="live-badge">LIVE</span>
-      </div>
-      <div class="stat-number" id="curHum">--<span class="stat-unit">%</span></div>
-    </div>
-    <div class="stat-block accent-bark">
-      <div class="stat-eyebrow">Max Temp</div>
-      <div class="stat-number" id="maxTemp">--<span class="stat-unit">°C</span></div>
-    </div>
-    <div class="stat-block accent-bark">
-      <div class="stat-eyebrow">Max Humidity</div>
-      <div class="stat-number" id="maxHum">--<span class="stat-unit">%</span></div>
     </div>
   </div>
 
-  <!-- Chart -->
-  <div class="chart-panel">
-    <div class="chart-meta-row">
-      <div class="section-head" style="margin:0;">
-        <h2>Sensor Timeline</h2>
-        <span>1-minute averages</span>
-      </div>
-      <span class="meta-pill" id="dataCount">Waiting for data…</span>
-    </div>
-    <canvas id="dhtChart" height="75"></canvas>
+  <div class="sec-lbl">Statistics</div>
+  <div class="sgrid">
+    <div class="stile"><div class="stile-top"><span class="stile-ico">🌡️</span><span class="stile-tag st-sun">Temp</span></div><div class="stile-val sv-t" id="stT">--<span class="s-unit"> °C</span></div><div class="stile-lbl">Current temperature</div></div>
+    <div class="stile"><div class="stile-top"><span class="stile-ico">💧</span><span class="stile-tag st-sky">Hum</span></div><div class="stile-val sv-h" id="stH">--<span class="s-unit"> %</span></div><div class="stile-lbl">Current humidity</div></div>
+    <div class="stile"><div class="stile-top"><span class="stile-ico">📊</span><span class="stile-tag st-gold">Avg</span></div><div class="stile-val sv-g" id="stA">--<span class="s-unit"> °C</span></div><div class="stile-lbl">Session average</div></div>
+    <div class="stile"><div class="stile-top"><span class="stile-ico">📋</span><span class="stile-tag st-olive">Log</span></div><div class="stile-val sv-o" id="stR">0</div><div class="stile-lbl">Total readings</div></div>
   </div>
 
-  <!-- Table -->
-  <div class="table-panel">
-    <div class="table-topbar">
-      <h2>Reading History</h2>
-      <div class="table-controls-right">
-        <input type="text" class="tbl-input" id="searchBox" placeholder="Search time…" style="width:140px;">
-        <select class="tbl-select" id="rowsPerPage">
-          <option value="10">10 rows</option>
-          <option value="25" selected>25 rows</option>
-          <option value="50">50 rows</option>
-          <option value="100">100 rows</option>
-          <option value="all">All</option>
-        </select>
+  <div class="sec-lbl">LED Controls</div>
+  <div class="card">
+    <div class="card-head"><span class="c-title">💡 Light Controls</span><span class="c-badge">5 channels</span></div>
+    <div class="led-area">
+      <div class="led-hd"><span class="led-hd-txt">Pins 17 · 18 · 19 · 21 · 22</span>
+        <div class="bulk-row"><button class="bk-btn bk-on" onclick="allLEDs(1)">All On</button><button class="bk-btn bk-off" onclick="allLEDs(0)">All Off</button></div>
+      </div>
+      <div class="led-row" id="ledRow"></div>
+    </div>
+  </div>
+
+  <div class="sec-lbl">Trend</div>
+  <div class="card">
+    <div class="card-head"><span class="c-title">📈 History Chart</span><span class="c-badge">Last 50</span></div>
+    <div class="chart-area">
+      <div class="chart-leg">
+        <div class="cl"><div class="cl-dot" style="background:var(--sun);"></div>Temperature °C</div>
+        <div class="cl"><div class="cl-dot" style="background:var(--sky);"></div>Humidity %</div>
+      </div>
+      <canvas id="dhtChart" style="max-height:260px;width:100%;"></canvas>
+    </div>
+  </div>
+
+  <div class="sec-lbl">Sensor Log</div>
+  <div class="card">
+    <div class="card-head"><span class="c-title">📋 Readings</span><span id="tbadge" class="c-badge">0 records</span></div>
+    <div class="tbl-filter">
+      <div class="fgi"><span class="fg-lbl">Date</span><input type="date" id="dateFilter" class="f-inp"></div>
+      <button id="applyFilter" class="f-btn fa">Apply</button>
+      <button id="clearFilter" class="f-btn fc">Clear</button>
+      <div class="fgi" style="margin-left:auto;"><span class="fg-lbl">Rows</span>
+        <select id="rowsPerPage" class="rpp"><option value="10">10</option><option value="25" selected>25</option><option value="50">50</option><option value="100">100</option><option value="all">All</option></select>
       </div>
     </div>
-
     <div style="overflow-x:auto;">
       <table>
-        <thead>
-          <tr>
-            <th>Timestamp</th>
-            <th>Temperature</th>
-            <th>Humidity</th>
-          </tr>
-        </thead>
-        <tbody id="historyTable">
-          <tr><td colspan="3" class="empty-state">Select a date to load readings</td></tr>
-        </tbody>
+        <thead><tr><th>#</th><th>Date</th><th>Time</th><th class="r">Temp °C</th><th class="r">Humidity %</th><th class="r">Status</th></tr></thead>
+        <tbody id="dataTable"></tbody>
       </table>
     </div>
-
-    <div id="paginationControls" class="pag-row" style="display:none;">
-      <small>Showing <span id="showingRange">0</span> of <span id="totalRows">0</span> entries</small>
-      <div class="pag-btns">
-        <button class="pag-btn" id="prevPage" disabled>← Previous</button>
-        <span class="pag-info">Page <span id="currentPage">1</span> of <span id="totalPages">1</span></span>
-        <button class="pag-btn" id="nextPage" disabled>Next →</button>
+    <div class="tbl-foot">
+      <span id="tableInfo">0 records</span>
+      <div class="pgr">
+        <button id="prevBtn" class="pgb" disabled>← Prev</button>
+        <div id="pageNumbers" style="display:flex;gap:4px;"></div>
+        <button id="nextBtn" class="pgb" disabled>Next →</button>
       </div>
+      <span id="pageInfo">Page 1 of 1</span>
     </div>
-
-    <div id="noData" class="empty-state" style="display:none;">No readings found for the selected filters.</div>
-  </div>
-
-</div>
-</div>
-
-<!-- ══════════════════════════════════════
-     PAGE: CONTROLS
-══════════════════════════════════════ -->
-<div class="page" id="page-controls">
-<div class="container">
-
-  <div class="controls-layout">
-
-    <!-- LED List -->
-    <div class="panel">
-      <div class="panel-head">
-        <h3>LED Controls</h3>
-        <p>Click a toggle to switch the LED on or off</p>
-      </div>
-      <div class="panel-body">
-
-        <div class="led-row red" id="row-LED1">
-          <div class="led-info">
-            <div class="led-circle">●</div>
-            <div>
-              <div class="led-name-text">LED 1 — Red</div>
-              <div class="led-state" id="state-LED1">OFF</div>
-            </div>
-          </div>
-          <button class="toggle" id="toggle-LED1" onclick="toggleDevice('LED1')"></button>
-        </div>
-
-        <div class="led-row green" id="row-LED2">
-          <div class="led-info">
-            <div class="led-circle">●</div>
-            <div>
-              <div class="led-name-text">LED 2 — Green</div>
-              <div class="led-state" id="state-LED2">OFF</div>
-            </div>
-          </div>
-          <button class="toggle" id="toggle-LED2" onclick="toggleDevice('LED2')"></button>
-        </div>
-
-        <div class="led-row blue" id="row-LED3">
-          <div class="led-info">
-            <div class="led-circle">●</div>
-            <div>
-              <div class="led-name-text">LED 3 — Blue</div>
-              <div class="led-state" id="state-LED3">OFF</div>
-            </div>
-          </div>
-          <button class="toggle" id="toggle-LED3" onclick="toggleDevice('LED3')"></button>
-        </div>
-
-        <div class="led-row yellow" id="row-LED4">
-          <div class="led-info">
-            <div class="led-circle">●</div>
-            <div>
-              <div class="led-name-text">LED 4 — Yellow</div>
-              <div class="led-state" id="state-LED4">OFF</div>
-            </div>
-          </div>
-          <button class="toggle" id="toggle-LED4" onclick="toggleDevice('LED4')"></button>
-        </div>
-
-        <div class="led-row white" id="row-LED5">
-          <div class="led-info">
-            <div class="led-circle">●</div>
-            <div>
-              <div class="led-name-text">LED 5 — White</div>
-              <div class="led-state" id="state-LED5">OFF</div>
-            </div>
-          </div>
-          <button class="toggle" id="toggle-LED5" onclick="toggleDevice('LED5')"></button>
-        </div>
-
-      </div>
-    </div>
-
-    <!-- Quick Actions -->
-    <div>
-      <div class="panel">
-        <div class="panel-head">
-          <h3>Quick Actions</h3>
-        </div>
-        <div class="panel-body">
-          <span class="divider-label">Batch Control</span>
-          <button class="action-btn on" onclick="allOn()">Turn All ON</button>
-          <button class="action-btn off" onclick="allOff()">Turn All OFF</button>
-        </div>
-      </div>
-    </div>
-
   </div>
 </div>
-</div>
 
+<!-- ── THRESHOLDS ── -->
+<div id="tab-thresh" class="tab-panel">
+  <div class="pg-title">Alert <em>Thresholds</em></div>
+  <div class="pg-sub">Set safe limits · ESP32 checks every 30 s · Breach triggers SMTP alert</div>
+  <div class="thresh-wrap">
+    <div class="tb"><div class="tb-hdr sun">🌡️ Temperature</div><div class="tb-body"><div class="fg2">
+      <div class="fg"><label>Min (°C)</label><input type="number" id="tTempMin" step="0.5" placeholder="15"><span class="ferr" id="eTempMin">Required</span></div>
+      <div class="fg"><label>Max (°C)</label><input type="number" id="tTempMax" step="0.5" placeholder="40"><span class="ferr" id="eTempMax">Required</span></div>
+    </div><span class="ferr" id="eTempRange" style="margin-top:6px;display:none;">Min must be less than Max</span></div></div>
+    <div class="tb"><div class="tb-hdr sky">💧 Humidity</div><div class="tb-body"><div class="fg2">
+      <div class="fg"><label>Min (%)</label><input type="number" id="tHumMin" step="1" placeholder="20"><span class="ferr" id="eHumMin">Required</span></div>
+      <div class="fg"><label>Max (%)</label><input type="number" id="tHumMax" step="1" placeholder="90"><span class="ferr" id="eHumMax">Required</span></div>
+    </div><span class="ferr" id="eHumRange" style="margin-top:6px;display:none;">Min must be less than Max</span></div></div>
+    <div class="tb"><div class="tb-hdr olive">📬 Alert Settings</div><div class="tb-body" style="display:flex;flex-direction:column;gap:14px;">
+      <div class="fg"><label>Recipient email</label><input type="email" id="tEmail" placeholder="you@example.com"><span class="ferr" id="eEmail">Valid email required</span></div>
+      <div class="fg"><label>Cooldown (minutes)</label><input type="number" id="tCooldown" min="1" placeholder="10"><span class="ferr" id="eCooldown">Must be ≥ 1</span></div>
+    </div></div>
+    <button class="save-btn" id="saveBtn" onclick="saveThresholds()">Save Thresholds</button>
+    <div class="path-box"><strong style="color:var(--sun);">Firebase paths</strong><br>
+      <code>Thresholds/temperature/min|max</code> · <code>Thresholds/humidity/min|max</code> · <code>Thresholds/alertEmail</code> · <code>Thresholds/cooldownMin</code><br>
+      <code>Controls/LED1–5/state</code> · <code>DHT11/YYYY-MM-DD/HH/MM/SS/temperature|humidity</code>
+    </div>
+  </div>
+</div>
+</main>
+
+<div id="toast"></div>
 <script>
-  // ── Firebase ──
-  const firebaseConfig = {
-    apiKey: "AIzaSyDBeBDvMK8FS8eVoZW6B9MKZm_a7_tLd1E",
-    authDomain: "padernilla-d95b5.firebaseapp.com",
-    databaseURL: "https://padernilla-d95b5-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "padernilla-d95b5",
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
-
-  // ── Navigation ──
-  function showPage(name) {
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-    document.getElementById(`page-${name}`).classList.add('active');
-    document.querySelector(`[onclick="showPage('${name}')"]`).classList.add('active');
-  }
-
-  // ── LED Controls ──
-  function toggleDevice(device) {
-    const row = document.getElementById(`row-${device}`);
-    const isOn = row.classList.contains('on');
-    db.ref(`Controls/${device}`).set({ state: isOn ? 0 : 1, timestamp: Date.now() });
-  }
-
-  function allOff() {
-    ['LED1','LED2','LED3','LED4','LED5'].forEach(d =>
-      db.ref(`Controls/${d}`).set({ state: 0, timestamp: Date.now() })
-    );
-  }
-
-  function allOn() {
-    ['LED1','LED2','LED3','LED4','LED5'].forEach(d =>
-      db.ref(`Controls/${d}`).set({ state: 1, timestamp: Date.now() })
-    );
-  }
-
-  ['LED1','LED2','LED3','LED4','LED5'].forEach(device => {
-    db.ref(`Controls/${device}`).on('value', snap => {
-      const data = snap.val();
-      const row    = document.getElementById(`row-${device}`);
-      const toggle = document.getElementById(`toggle-${device}`);
-      const state  = document.getElementById(`state-${device}`);
-
-      if (!data || data.state === undefined) {
-        db.ref(`Controls/${device}`).set({ state: 0, timestamp: Date.now() });
-        return;
-      }
-
-      if (data.state === 1) {
-        row.classList.add('on');
-        toggle.classList.add('on');
-        state.textContent = 'ON';
-      } else {
-        row.classList.remove('on');
-        toggle.classList.remove('on');
-        state.textContent = 'OFF';
-      }
-    });
-  });
-
-  // ── Chart ──
-  const labels = [], tempData = [], humData = [];
-  const dhtChart = new Chart(document.getElementById('dhtChart').getContext('2d'), {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [
-        {
-          label: 'Temperature (°C)',
-          data: tempData,
-          borderColor: '#c7603a',
-          backgroundColor: 'rgba(199,96,58,.08)',
-          fill: true, tension: .4, pointRadius: 3, pointHoverRadius: 6,
-          pointBackgroundColor: '#c7603a'
-        },
-        {
-          label: 'Humidity (%)',
-          data: humData,
-          borderColor: '#4a7fa5',
-          backgroundColor: 'rgba(74,127,165,.08)',
-          fill: true, tension: .4, pointRadius: 3, pointHoverRadius: 6,
-          pointBackgroundColor: '#4a7fa5'
-        }
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: true,
-      plugins: {
-        legend: { position: 'top', labels: { color: '#9a8470', font: { family: 'DM Sans', size: 12 } } },
-        tooltip: { mode: 'index', intersect: false }
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          grid: { color: '#ede7d9' },
-          ticks: { color: '#9a8470', font: { family: 'DM Mono', size: 11 } }
-        },
-        x: {
-          title: { display: true, text: 'Time', color: '#9a8470', font: { family: 'DM Sans', size: 11 } },
-          grid: { display: false },
-          ticks: { color: '#9a8470', font: { family: 'DM Mono', size: 11 }, maxTicksLimit: 12 }
-        }
-      }
-    }
-  });
-
-  // ── DOM refs ──
-  const dateInput      = document.getElementById('dateInput');
-  const startHour      = document.getElementById('startHour');
-  const endHour        = document.getElementById('endHour');
-  const realtimeToggle = document.getElementById('realtimeToggle');
-  const liveLabel      = document.getElementById('liveLabel');
-  const tbody          = document.getElementById('historyTable');
-  const searchBox      = document.getElementById('searchBox');
-  const rowsPerPage    = document.getElementById('rowsPerPage');
-  const prevBtn        = document.getElementById('prevPage');
-  const nextBtn        = document.getElementById('nextPage');
-  const pagControls    = document.getElementById('paginationControls');
-
-  let listener = null, allData = [], filtered = [], page = 1, rpp = 25;
-
-  dateInput.value = new Date().toISOString().split('T')[0];
-
-  for (let i = 0; i < 24; i++) {
-    const h = i.toString().padStart(2,'0');
-    startHour.innerHTML += `<option value="${h}">${h}:00</option>`;
-    endHour.innerHTML   += `<option value="${h}">${h}:59</option>`;
-  }
-
-  function setRange(s, e) {
-    startHour.value = s === '' ? '' : s.toString().padStart(2,'0');
-    endHour.value   = e === '' ? '' : e.toString().padStart(2,'0');
-    startListener();
-  }
-
-  function aggregateByMinute(data) {
-    const map = new Map();
-    [...data].reverse().forEach(p => {
-      const key = p.time.slice(0,5);
-      if (!map.has(key)) map.set(key, { temps:[], hums:[], ts: p.timestamp });
-      map.get(key).temps.push(p.temp);
-      map.get(key).hums.push(p.hum);
-    });
-    return [...map.entries()]
-      .map(([k,v]) => ({
-        time: k,
-        temp: parseFloat((v.temps.reduce((a,b)=>a+b,0)/v.temps.length).toFixed(1)),
-        hum:  parseFloat((v.hums.reduce((a,b)=>a+b,0)/v.hums.length).toFixed(1)),
-        timestamp: v.ts
-      }))
-      .sort((a,b) => a.timestamp - b.timestamp);
-  }
-
-  function startListener() {
-    const date = dateInput.value;
-    if (!date) return;
-    if (listener) listener.off();
-    labels.length = tempData.length = humData.length = 0;
-    allData = [];
-
-    listener = db.ref(`DHT11/${date}`);
-    listener.on('value', snap => {
-      if (!snap.exists()) { showEmpty(); return; }
-
-      const sh = startHour.value, eh = endHour.value;
-      const rows = [];
-
-      snap.forEach(hourNode => {
-        const h = parseInt(hourNode.key);
-        if (sh && h < parseInt(sh)) return;
-        if (eh && h > parseInt(eh)) return;
-        const hStr = hourNode.key;
-        hourNode.forEach(minNode => {
-          const m = minNode.key;
-          minNode.forEach(secNode => {
-            const s = secNode.key, d = secNode.val();
-            rows.push({
-              time: `${hStr}:${m}:${s}`,
-              temp: d.temperature,
-              hum:  d.humidity,
-              timestamp: new Date(`${date}T${hStr}:${m}:${s}`)
-            });
-          });
-        });
-      });
-
-      if (!rows.length) { showEmpty(); return; }
-
-      rows.sort((a,b) => b.timestamp - a.timestamp);
-      allData = rows; filtered = rows; page = 1;
-
-      const graphData = aggregateByMinute(rows);
-      labels.length = tempData.length = humData.length = 0;
-      graphData.forEach(p => { labels.push(p.time); tempData.push(p.temp); humData.push(p.hum); });
-
-      updateStats(rows);
-      dhtChart.update();
-      renderTable();
-
-      document.getElementById('noData').style.display = 'none';
-      document.getElementById('dataCount').textContent = `${graphData.length} min · ${rows.length} readings`;
-    });
-  }
-
-  function updateStats(data) {
-    const latest = data[0];
-    const temps = data.map(p => p.temp);
-    const hums  = data.map(p => p.hum);
-    document.getElementById('curTemp').innerHTML = `${latest.temp}<span class="stat-unit">°C</span>`;
-    document.getElementById('curHum').innerHTML  = `${latest.hum}<span class="stat-unit">%</span>`;
-    document.getElementById('maxTemp').innerHTML = `${Math.max(...temps).toFixed(1)}<span class="stat-unit">°C</span>`;
-    document.getElementById('maxHum').innerHTML  = `${Math.max(...hums).toFixed(1)}<span class="stat-unit">%</span>`;
-  }
-
-  function renderTable() {
-    if (!filtered.length) {
-      tbody.innerHTML = '<tr><td colspan="3" class="empty-state">No matching records</td></tr>';
-      pagControls.style.display = 'none';
-      return;
-    }
-
-    const total  = filtered.length;
-    const perPage = rpp === 'all' ? total : parseInt(rpp);
-    const pages  = Math.ceil(total / perPage);
-    if (page > pages) page = pages;
-    if (page < 1) page = 1;
-
-    const start = (page-1)*perPage;
-    const end   = rpp === 'all' ? total : Math.min(start+perPage, total);
-    const slice = filtered.slice(start, end);
-
-    tbody.innerHTML = slice.map((p, i) => `
-      <tr${(start+i===0) ? ' class="latest-row"' : ''}>
-        <td><span class="tag-time">${p.time}</span></td>
-        <td><span class="tag-temp">${p.temp} °C</span></td>
-        <td><span class="tag-hum">${p.hum} %</span></td>
-      </tr>
-    `).join('');
-
-    document.getElementById('currentPage').textContent  = page;
-    document.getElementById('totalPages').textContent   = pages;
-    document.getElementById('totalRows').textContent    = total;
-    document.getElementById('showingRange').textContent = `${start+1}–${end}`;
-    prevBtn.disabled = page === 1;
-    nextBtn.disabled = page === pages || rpp === 'all';
-    pagControls.style.display = rpp === 'all' ? 'none' : 'flex';
-  }
-
-  function showEmpty() {
-    document.getElementById('noData').style.display = 'block';
-    document.getElementById('dataCount').textContent = 'No data';
-    tbody.innerHTML = '<tr><td colspan="3" class="empty-state">No readings for selected filters</td></tr>';
-    pagControls.style.display = 'none';
-    document.getElementById('curTemp').innerHTML  = '--<span class="stat-unit">°C</span>';
-    document.getElementById('curHum').innerHTML   = '--<span class="stat-unit">%</span>';
-    document.getElementById('maxTemp').innerHTML  = '--<span class="stat-unit">°C</span>';
-    document.getElementById('maxHum').innerHTML   = '--<span class="stat-unit">%</span>';
-  }
-
-  searchBox.addEventListener('input', () => {
-    const q = searchBox.value.toLowerCase();
-    filtered = q ? allData.filter(p => p.time.includes(q)) : allData;
-    page = 1; renderTable();
-  });
-
-  rowsPerPage.addEventListener('change', () => { rpp = rowsPerPage.value; page=1; renderTable(); });
-  prevBtn.addEventListener('click', () => { if(page>1){page--;renderTable();} });
-  nextBtn.addEventListener('click', () => { const t=Math.ceil(filtered.length/parseInt(rpp)); if(page<t){page++;renderTable();} });
-
-  realtimeToggle.addEventListener('change', () => {
-    liveLabel.classList.toggle('on', realtimeToggle.checked);
-    if (realtimeToggle.checked) startListener();
-    else { if(listener){listener.off();listener=null;} document.getElementById('dataCount').textContent += ' (paused)'; }
-  });
-
-  dateInput.addEventListener('change', startListener);
-  startHour.addEventListener('change', startListener);
-  endHour.addEventListener('change', startListener);
-
-  startListener();
+const firebaseConfig={
+    apiKey:"AIzaSyAXetaLVWfSdIlZs7QUexrpQCHf_1QY9ig",
+    atabaseURL:"https://kurt--cyril--padernilla-default-rtdb.firebaseio.com",
+    projectId: "kurt--cyril--padernilla"
+};
+firebase.initializeApp(firebaseConfig);const db=firebase.database();
+let thresh={tempMin:null,tempMax:null,humMin:null,humMax:null,email:'',cooldown:10};
+db.ref('Thresholds').on('value',snap=>{const d=snap.val();if(!d)return;
+  thresh.tempMin=d.temperature?.min??null;thresh.tempMax=d.temperature?.max??null;
+  thresh.humMin=d.humidity?.min??null;thresh.humMax=d.humidity?.max??null;
+  thresh.email=d.alertEmail??'';thresh.cooldown=d.cooldownMin??10;
+  sv('tTempMin',thresh.tempMin);sv('tTempMax',thresh.tempMax);sv('tHumMin',thresh.humMin);sv('tHumMax',thresh.humMax);sv('tEmail',thresh.email);sv('tCooldown',thresh.cooldown);
+  refreshRanges();document.getElementById('aEmail').textContent='📧 '+(thresh.email||'Not set');});
+function sv(id,v){if(v!==null&&v!==undefined&&v!=='')document.getElementById(id).value=v;}
+function switchTab(n){document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.getElementById('tab-'+n).classList.add('active');document.querySelector(`.tab[onclick*="${n}"]`).classList.add('active');}
+const chart=new Chart(document.getElementById('dhtChart').getContext('2d'),{type:'line',data:{labels:[],datasets:[{label:'Temp',data:[],borderColor:'#e8720c',backgroundColor:'rgba(232,114,12,0.07)',borderWidth:2.5,pointRadius:3,pointBackgroundColor:'#e8720c',fill:true,tension:0.4},{label:'Humidity',data:[],borderColor:'#4a8fa8',backgroundColor:'rgba(74,143,168,0.07)',borderWidth:2.5,pointRadius:3,pointBackgroundColor:'#4a8fa8',fill:true,tension:0.4}]},options:{responsive:true,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{backgroundColor:'#fffcf7',titleColor:'#1f1810',bodyColor:'#4a3d2e',borderColor:'#ecdcc8',borderWidth:1,padding:12,cornerRadius:10,titleFont:{family:'Sora',size:11,weight:'700'},bodyFont:{family:'Sora',size:11}}},scales:{x:{ticks:{color:'#9a8a78',font:{family:'Sora',size:10},maxTicksLimit:8},grid:{color:'rgba(31,24,16,0.04)'},border:{color:'#ecdcc8'}},y:{beginAtZero:false,ticks:{color:'#9a8a78',font:{family:'Sora',size:10}},grid:{color:'rgba(31,24,16,0.04)'},border:{color:'#ecdcc8'}}}}});
+const PINS=[17,18,19,21,22];const ledRow=document.getElementById('ledRow');
+for(let i=1;i<=5;i++){const d=document.createElement('div');d.className='lpill';d.id='lp'+i;
+  d.innerHTML=`<span id="lo${i}" class="lorb"></span><span class="lpill-name">LED ${i}</span><span class="lpill-pin">Pin ${PINS[i-1]}</span><div class="lpill-btns"><button class="lb lb-on" onclick="setLED(${i},1)">On</button><button class="lb lb-off" onclick="setLED(${i},0)">Off</button></div>`;
+  ledRow.appendChild(d);}
+function setLED(n,s){db.ref('Controls/LED'+n+'/state').set(s);}
+function allLEDs(s){for(let i=1;i<=5;i++)setLED(i,s);}
+for(let i=1;i<=5;i++){db.ref('Controls/LED'+i+'/state').on('value',snap=>{const o=document.getElementById('lo'+i);const p=document.getElementById('lp'+i);if(snap.val()===1){o.classList.add('on');p.classList.add('on');}else{o.classList.remove('on');p.classList.remove('on');}});}
+let allRows=[],currentPage=1,selDate=null,rowsPerPage=25;
+function getStatus(t,h){const i=[];if(thresh.tempMin!==null&&t<thresh.tempMin)i.push('Temp low');if(thresh.tempMax!==null&&t>thresh.tempMax)i.push('Temp high');if(thresh.humMin!==null&&h<thresh.humMin)i.push('Hum low');if(thresh.humMax!==null&&h>thresh.humMax)i.push('Hum high');return i.length?i.join(', '):'Normal';}
+function refreshRanges(){const tN=thresh.tempMin!==null?thresh.tempMin+'°C':'--';const tX=thresh.tempMax!==null?thresh.tempMax+'°C':'--';const hN=thresh.humMin!==null?thresh.humMin+'%':'--';const hX=thresh.humMax!==null?thresh.humMax+'%':'--';document.getElementById('tRange').textContent=`Limits: ${tN} – ${tX}`;document.getElementById('hRange').textContent=`Limits: ${hN} – ${hX}`;}
+db.ref('DHT11').on('value',snap=>{const data=snap.val();allRows=[];if(!data){setConn('No data');return;}
+  for(const date in data)for(const hh in data[date])for(const mm in data[date][hh])for(const ss in data[date][hh][mm]){const e=data[date][hh][mm][ss];if(e.temperature!==undefined)allRows.push({date,time:`${hh}:${mm}:${ss}`,temp:e.temperature,hum:e.humidity});}
+  allRows.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));setConn(allRows.length+' readings synced');renderAll();});
+function setConn(m){document.getElementById('cdot').classList.add('live');document.getElementById('ctxt').textContent=m;}
+function filteredRows(){return selDate?allRows.filter(r=>r.date===selDate):allRows;}
+function totalPages(){return rowsPerPage===Infinity?1:Math.max(1,Math.ceil(filteredRows().length/rowsPerPage));}
+function renderStats(){const rows=filteredRows();if(!rows.length)return;const last=rows[rows.length-1];const avg=(rows.reduce((a,r)=>a+r.temp,0)/rows.length).toFixed(1);
+  document.getElementById('hdrT').textContent=last.temp.toFixed(1);document.getElementById('hdrH').textContent=last.hum.toFixed(1);
+  document.getElementById('liveT').innerHTML=last.temp.toFixed(1)+'<span class="trio-unit"> °C</span>';document.getElementById('liveH').innerHTML=last.hum.toFixed(1)+'<span class="trio-unit"> %</span>';
+  document.getElementById('tBar').style.width=Math.min(100,Math.max(0,(last.temp/60)*100))+'%';document.getElementById('hBar').style.width=Math.min(100,Math.max(0,last.hum))+'%';
+  refreshRanges();document.getElementById('aTime').textContent='🕐 '+last.date+' '+last.time;document.getElementById('aCnt').textContent='📦 '+rows.length+' readings';
+  document.getElementById('stT').innerHTML=last.temp.toFixed(1)+'<span class="s-unit"> °C</span>';document.getElementById('stH').innerHTML=last.hum.toFixed(1)+'<span class="s-unit"> %</span>';
+  document.getElementById('stA').innerHTML=avg+'<span class="s-unit"> °C</span>';document.getElementById('stR').textContent=rows.length;document.getElementById('tbadge').textContent=rows.length+' records';
+  const st=getStatus(last.temp,last.hum);const ap=document.getElementById('apill');const at=document.getElementById('atxt');
+  if(st==='Normal'){ap.className='alert-pill ap-ok';at.textContent='All clear';}else{ap.className='alert-pill ap-warn';at.textContent='⚠ '+st;}}
+function renderChart(){const rows=filteredRows().slice(-50);chart.data.labels=rows.map(r=>r.time);chart.data.datasets[0].data=rows.map(r=>r.temp);chart.data.datasets[1].data=rows.map(r=>r.hum);chart.update();}
+function renderTable(){const rows=filteredRows();const tp=totalPages();currentPage=Math.min(currentPage,tp);const start=rowsPerPage===Infinity?0:(currentPage-1)*rowsPerPage;const end=rowsPerPage===Infinity?rows.length:Math.min(start+rowsPerPage,rows.length);const tb=document.getElementById('dataTable');tb.innerHTML='';
+  rows.slice(start,end).forEach((r,i)=>{const tr=document.createElement('tr');tr.className='rr';const tCls=r.temp>=35?'vth r':r.temp>=28?'vtm r':'vtl r';const hCls=r.hum>=80?'vhh r':r.hum>=60?'vhm r':'vhl r';const st=getStatus(r.temp,r.hum);const sc=st==='Normal'?'<span class="sch ok">✓ Normal</span>':'<span class="sch warn">⚠ '+st+'</span>';
+    tr.innerHTML=`<td style="color:var(--ink-mute);font-size:0.68rem;">${start+i+1}</td><td class="dc">${r.date}</td><td class="tc">${r.time}</td><td class="${tCls}">${r.temp.toFixed(1)}</td><td class="${hCls}">${r.hum.toFixed(1)}</td><td class="r">${sc}</td>`;tb.appendChild(tr);});
+  document.getElementById('tableInfo').textContent=`${Math.min(start+1,rows.length)}–${end} of ${rows.length}`;document.getElementById('pageInfo').textContent=`Page ${currentPage} of ${tp}`;
+  document.getElementById('prevBtn').disabled=currentPage<=1;document.getElementById('nextBtn').disabled=currentPage>=tp;
+  const pn=document.getElementById('pageNumbers');pn.innerHTML='';const mP=5,pS=Math.max(1,Math.min(currentPage-2,tp-mP+1)),pE=Math.min(tp,pS+mP-1);
+  for(let p=pS;p<=pE;p++){const b=document.createElement('button');b.textContent=p;b.className='pgb'+(p===currentPage?' active':'');b.onclick=()=>{currentPage=p;renderTable();};pn.appendChild(b);}}
+function renderAll(){renderChart();renderStats();renderTable();}
+document.getElementById('applyFilter').onclick=()=>{selDate=document.getElementById('dateFilter').value||null;currentPage=1;renderAll();};
+document.getElementById('clearFilter').onclick=()=>{selDate=null;document.getElementById('dateFilter').value='';currentPage=1;renderAll();};
+document.getElementById('rowsPerPage').onchange=e=>{rowsPerPage=e.target.value==='all'?Infinity:Number(e.target.value);currentPage=1;renderTable();};
+document.getElementById('prevBtn').onclick=()=>{if(currentPage>1){currentPage--;renderTable();}};
+document.getElementById('nextBtn').onclick=()=>{if(currentPage<totalPages()){currentPage++;renderTable();}};
+function saveThresholds(){
+  ['tTempMin','tTempMax','tHumMin','tHumMax','tEmail','tCooldown'].forEach(id=>document.getElementById(id).classList.remove('err'));
+  ['eTempMin','eTempMax','eHumMin','eHumMax','eEmail','eCooldown','eTempRange','eHumRange'].forEach(id=>{const e=document.getElementById(id);e.classList.remove('show');e.style.display='';});
+  const tMin=parseFloat(document.getElementById('tTempMin').value),tMax=parseFloat(document.getElementById('tTempMax').value);
+  const hMin=parseFloat(document.getElementById('tHumMin').value),hMax=parseFloat(document.getElementById('tHumMax').value);
+  const em=document.getElementById('tEmail').value.trim(),cd=parseInt(document.getElementById('tCooldown').value,10);
+  let ok=true;const se=(f,e)=>{document.getElementById(f).classList.add('err');const el=document.getElementById(e);el.style.display='block';el.classList.add('show');ok=false;};
+  const sm=id=>{const e=document.getElementById(id);e.style.display='block';e.classList.add('show');};
+  if(isNaN(tMin))se('tTempMin','eTempMin');if(isNaN(tMax))se('tTempMax','eTempMax');
+  if(isNaN(hMin))se('tHumMin','eHumMin');if(isNaN(hMax))se('tHumMax','eHumMax');
+  if(!em||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em))se('tEmail','eEmail');
+  if(isNaN(cd)||cd<1)se('tCooldown','eCooldown');
+  if(!isNaN(tMin)&&!isNaN(tMax)&&tMin>=tMax){se('tTempMin','eTempRange');se('tTempMax','eTempRange');sm('eTempRange');}
+  if(!isNaN(hMin)&&!isNaN(hMax)&&hMin>=hMax){se('tHumMin','eHumRange');se('tHumMax','eHumRange');sm('eHumRange');}
+  if(!ok)return;
+  const btn=document.getElementById('saveBtn');btn.disabled=true;btn.textContent='Saving…';
+  db.ref('Thresholds').set({temperature:{min:tMin,max:tMax},humidity:{min:hMin,max:hMax},alertEmail:em,cooldownMin:cd})
+  .then(()=>{toast('✓ Saved!','ok');btn.textContent='Saved ✓';setTimeout(()=>{btn.disabled=false;btn.textContent='Save Thresholds';},2500);})
+  .catch(err=>{toast('Error: '+err.message,'fail');btn.disabled=false;btn.textContent='Save Thresholds';});}
+function toast(msg,type){const t=document.getElementById('toast');t.textContent=msg;t.className='show '+type;setTimeout(()=>t.className='',3500);}
 </script>
 </body>
 </html>
